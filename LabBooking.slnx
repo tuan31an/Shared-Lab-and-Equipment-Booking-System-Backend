@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LabBooking.API/LabBooking.API.csproj" />
+  <Project Path="LabBooking.Application/LabBooking.Application.csproj" />
+  <Project Path="LabBooking.Domain/LabBooking.Domain.csproj" />
+  <Project Path="LabBooking.Infrastructure.Sqlserver/LabBooking.Infrastructure.Sqlserver.csproj" />
+</Solution>
