@@ -1,0 +1,1573 @@
+openapi: 3.0.3
+info:
+  title: Lab & Equipment Booking Platform API
+  description: >
+    API contract cho Đề tài 03 — Nền tảng Đặt lịch & Quản lý Phòng thí nghiệm/Thiết bị Dùng chung.
+    Phạm vi Sprint 1: Auth, Danh mục phòng/thiết bị (Resource), Đặt lịch (Booking) và các module liên quan
+    (Waitlist, Check-in/out, Incident, Maintenance, Violation, Restriction, Notification).
+  version: "0.1.0"
+  contact:
+    name: Nhóm phát triển - Đề tài 03
+servers:
+  - url: https://api.labbooking.example.vn/api/v1
+    description: Môi trường phát triển
+
+tags:
+  - name: Auth
+    description: Đăng ký, đăng nhập, quản lý token
+  - name: Users
+    description: Quản lý người dùng
+  - name: Departments
+    description: Quản lý khoa/bộ môn
+  - name: Resources
+    description: Danh mục phòng thí nghiệm/thiết bị & lịch khả dụng
+  - name: PriorityRules
+    description: Quy tắc ưu tiên đặt lịch
+  - name: Bookings
+    description: Đặt lịch, duyệt/từ chối, phát hiện xung đột
+  - name: Waitlist
+    description: Hàng đợi chờ khi khung giờ đã kín
+  - name: CheckInOut
+    description: Check-in/Check-out sử dụng phòng/thiết bị
+  - name: Incidents
+    description: Ghi nhận sự cố/hư hỏng
+  - name: Maintenance
+    description: Lịch bảo trì thiết bị
+  - name: Violations
+    description: Ghi nhận vi phạm (trễ hạn, no-show)
+  - name: Restrictions
+    description: Hạn chế quyền đặt lịch
+  - name: Notifications
+    description: Thông báo hệ thống
+  - name: Reports
+    description: Báo cáo & thống kê
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản mới
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Tạo tài khoản thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập, nhận access token & refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          description: Sai email hoặc mật khẩu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Làm mới access token bằng refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          description: Refresh token không hợp lệ hoặc hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Đăng xuất, thu hồi refresh token hiện tại
+      responses:
+        '204':
+          description: Đăng xuất thành công
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Lấy danh sách người dùng (Admin)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Danh sách người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+    post:
+      tags: [Users]
+      summary: Tạo người dùng mới (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Lấy thông tin người dùng hiện tại
+      responses:
+        '200':
+          description: Thông tin người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserIdParam'
+    get:
+      tags: [Users]
+      summary: Xem chi tiết người dùng
+      responses:
+        '200':
+          description: Chi tiết người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Users]
+      summary: Cập nhật thông tin người dùng (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags: [Users]
+      summary: Vô hiệu hoá tài khoản (Admin)
+      responses:
+        '204':
+          description: Vô hiệu hoá thành công
+
+  /departments:
+    get:
+      tags: [Departments]
+      summary: Danh sách khoa/bộ môn
+      responses:
+        '200':
+          description: Danh sách khoa/bộ môn
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+    post:
+      tags: [Departments]
+      summary: Tạo khoa/bộ môn (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+
+  /resources:
+    get:
+      tags: [Resources]
+      summary: Danh sách phòng/thiết bị (tìm kiếm, lọc)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ResourceType'
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ResourceStatus'
+        - name: keyword
+          in: query
+          description: Tìm theo tên phòng/thiết bị
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách phòng/thiết bị
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+    post:
+      tags: [Resources]
+      summary: Thêm phòng/thiết bị mới (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreateRequest'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+
+  /resources/{resourceId}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceIdParam'
+    get:
+      tags: [Resources]
+      summary: Chi tiết phòng/thiết bị
+      responses:
+        '200':
+          description: Chi tiết phòng/thiết bị
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Resources]
+      summary: Cập nhật phòng/thiết bị (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreateRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+    delete:
+      tags: [Resources]
+      summary: Ngừng sử dụng phòng/thiết bị (Admin)
+      responses:
+        '204':
+          description: Xoá/ngừng sử dụng thành công
+
+  /resources/{resourceId}/availability:
+    parameters:
+      - $ref: '#/components/parameters/ResourceIdParam'
+    get:
+      tags: [Resources]
+      summary: Xem lịch khả dụng của phòng/thiết bị theo khoảng thời gian
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Danh sách khung giờ (trống/đã đặt/bảo trì)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailabilitySlot'
+
+  /priority-rules:
+    get:
+      tags: [PriorityRules]
+      summary: Danh sách quy tắc ưu tiên
+      responses:
+        '200':
+          description: Danh sách quy tắc ưu tiên
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriorityRule'
+    post:
+      tags: [PriorityRules]
+      summary: Tạo quy tắc ưu tiên (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriorityRuleRequest'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriorityRule'
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: Danh sách yêu cầu đặt lịch (lọc theo vai trò, trạng thái)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: requesterId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Danh sách yêu cầu đặt lịch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingListResponse'
+    post:
+      tags: [Bookings]
+      summary: Tạo yêu cầu đặt lịch mới
+      description: >
+        Nếu khung giờ bị xung đột, hệ thống trả về 409 kèm danh sách khung giờ thay thế
+        thay vì tạo Booking.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+      responses:
+        '201':
+          description: Tạo yêu cầu thành công (trạng thái Pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '409':
+          description: Xung đột lịch — kèm đề xuất khung giờ thay thế
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingConflictResponse'
+
+  /bookings/check-conflict:
+    post:
+      tags: [Bookings]
+      summary: Kiểm tra xung đột lịch trước khi tạo yêu cầu (preview)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resourceId, startTime, endTime]
+              properties:
+                resourceId:
+                  type: string
+                  format: uuid
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Kết quả kiểm tra xung đột
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingConflictResponse'
+
+  /bookings/{bookingId}:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    get:
+      tags: [Bookings]
+      summary: Chi tiết yêu cầu đặt lịch
+      responses:
+        '200':
+          description: Chi tiết Booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bookings/{bookingId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    post:
+      tags: [Bookings]
+      summary: Duyệt yêu cầu đặt lịch (Lab Manager)
+      responses:
+        '200':
+          description: Duyệt thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '409':
+          description: Không thể duyệt do xung đột với Booking khác đã được duyệt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{bookingId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    post:
+      tags: [Bookings]
+      summary: Từ chối yêu cầu đặt lịch (Lab Manager)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Từ chối thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{bookingId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    post:
+      tags: [Bookings]
+      summary: Huỷ yêu cầu đặt lịch (Requester)
+      responses:
+        '200':
+          description: Huỷ thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Không thể huỷ (đã qua thời điểm cho phép huỷ)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{bookingId}/checkin:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    post:
+      tags: [CheckInOut]
+      summary: Check-in bắt đầu sử dụng
+      responses:
+        '200':
+          description: Check-in thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckInOut'
+
+  /bookings/{bookingId}/checkout:
+    parameters:
+      - $ref: '#/components/parameters/BookingIdParam'
+    post:
+      tags: [CheckInOut]
+      summary: Check-out kết thúc sử dụng
+      responses:
+        '200':
+          description: Check-out thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckInOut'
+
+  /waitlist:
+    get:
+      tags: [Waitlist]
+      summary: Danh sách hàng đợi chờ
+      parameters:
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: requesterId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Danh sách hàng đợi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Waitlist'
+    post:
+      tags: [Waitlist]
+      summary: Đăng ký chờ khung giờ mong muốn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistCreateRequest'
+      responses:
+        '201':
+          description: Đăng ký chờ thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Waitlist'
+
+  /waitlist/{waitlistId}:
+    parameters:
+      - name: waitlistId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Waitlist]
+      summary: Huỷ đăng ký chờ
+      responses:
+        '204':
+          description: Huỷ thành công
+
+  /incidents:
+    get:
+      tags: [Incidents]
+      summary: Danh sách sự cố/hư hỏng
+      parameters:
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Open, InReview, Resolved]
+      responses:
+        '200':
+          description: Danh sách sự cố
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+    post:
+      tags: [Incidents]
+      summary: Ghi nhận sự cố/hư hỏng sau khi sử dụng
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentCreateRequest'
+      responses:
+        '201':
+          description: Ghi nhận thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /incidents/{incidentId}:
+    parameters:
+      - name: incidentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Incidents]
+      summary: Cập nhật trạng thái xử lý sự cố (Lab Manager)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Open, InReview, Resolved]
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /maintenance:
+    get:
+      tags: [Maintenance]
+      summary: Danh sách lịch bảo trì
+      parameters:
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Danh sách lịch bảo trì
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Maintenance'
+    post:
+      tags: [Maintenance]
+      summary: Lập lịch bảo trì (Lab Manager). Tự động khoá Booking trong khung giờ này.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceCreateRequest'
+      responses:
+        '201':
+          description: Tạo lịch bảo trì thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Maintenance'
+        '409':
+          description: Trùng khung giờ với Booking đã được duyệt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /maintenance/{maintenanceId}:
+    parameters:
+      - name: maintenanceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Maintenance]
+      summary: Cập nhật lịch bảo trì
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceCreateRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Maintenance'
+
+  /violations:
+    get:
+      tags: [Violations]
+      summary: Danh sách vi phạm
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [Late, NoShow]
+      responses:
+        '200':
+          description: Danh sách vi phạm
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Violation'
+
+  /restrictions:
+    get:
+      tags: [Restrictions]
+      summary: Danh sách hạn chế quyền đặt lịch
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Danh sách hạn chế
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Restriction'
+    post:
+      tags: [Restrictions]
+      summary: Áp dụng hạn chế quyền đặt lịch (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestrictionCreateRequest'
+      responses:
+        '201':
+          description: Áp dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restriction'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Danh sách thông báo của người dùng hiện tại
+      parameters:
+        - name: isRead
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Danh sách thông báo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+  /notifications/{notificationId}/read:
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Notifications]
+      summary: Đánh dấu thông báo đã đọc
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+
+  /reports/utilization:
+    get:
+      tags: [Reports]
+      summary: Báo cáo tỷ lệ sử dụng theo phòng/thiết bị hoặc khoa/bộ môn
+      parameters:
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Số liệu tỷ lệ sử dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UtilizationReport'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+    UserIdParam:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ResourceIdParam:
+      name: resourceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookingIdParam:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Dữ liệu đầu vào không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: RESOURCE_NOT_FOUND
+        message:
+          type: string
+          example: "Không tìm thấy tài nguyên yêu cầu"
+
+    UserRole:
+      type: string
+      enum: [Admin, LabManager, Requester]
+
+    UserStatus:
+      type: string
+      enum: [Active, Restricted, Disabled]
+
+    ResourceType:
+      type: string
+      enum: [Room, Equipment]
+
+    ResourceStatus:
+      type: string
+      enum: [Available, UnderMaintenance, Disabled]
+
+    BookingStatus:
+      type: string
+      enum: [Pending, Approved, Rejected, Cancelled, Completed]
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    DepartmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        department:
+          $ref: '#/components/schemas/Department'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    UserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    UserCreateRequest:
+      type: object
+      required: [fullName, email, password, role]
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        role:
+          $ref: '#/components/schemas/UserRole'
+        departmentId:
+          type: string
+          format: uuid
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        departmentId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/UserStatus'
+
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        departmentId:
+          type: string
+          format: uuid
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    AuthTokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Thời gian hết hạn access token (giây)
+        user:
+          $ref: '#/components/schemas/User'
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        specifications:
+          type: string
+        imageUrl:
+          type: string
+        usageRules:
+          type: string
+        department:
+          $ref: '#/components/schemas/Department'
+        labManagerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ResourceStatus'
+
+    ResourceListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Resource'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    ResourceCreateRequest:
+      type: object
+      required: [name, type, departmentId]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        specifications:
+          type: string
+        imageUrl:
+          type: string
+        usageRules:
+          type: string
+        departmentId:
+          type: string
+          format: uuid
+        labManagerId:
+          type: string
+          format: uuid
+
+    AvailabilitySlot:
+      type: object
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [Free, Booked, UnderMaintenance]
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+
+    PriorityRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        priorityLevel:
+          type: integer
+        description:
+          type: string
+
+    PriorityRuleRequest:
+      type: object
+      required: [name, priorityLevel]
+      properties:
+        name:
+          type: string
+        priorityLevel:
+          type: integer
+        description:
+          type: string
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        resource:
+          $ref: '#/components/schemas/Resource'
+        requester:
+          $ref: '#/components/schemas/User'
+        priorityRule:
+          $ref: '#/components/schemas/PriorityRule'
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        purpose:
+          type: string
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    BookingListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    BookingCreateRequest:
+      type: object
+      required: [resourceId, startTime, endTime, purpose]
+      properties:
+        resourceId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        purpose:
+          type: string
+        priorityRuleId:
+          type: string
+          format: uuid
+
+    BookingConflictResponse:
+      type: object
+      properties:
+        hasConflict:
+          type: boolean
+        conflictingBookings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        suggestedSlots:
+          type: array
+          description: Tối thiểu 3 khung giờ thay thế gần nhất (nếu có xung đột)
+          items:
+            $ref: '#/components/schemas/AvailabilitySlot'
+
+    Waitlist:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        resourceId:
+          type: string
+          format: uuid
+        requesterId:
+          type: string
+          format: uuid
+        desiredStart:
+          type: string
+          format: date-time
+        desiredEnd:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [Waiting, Notified, Expired, Converted]
+        notifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    WaitlistCreateRequest:
+      type: object
+      required: [resourceId, desiredStart, desiredEnd]
+      properties:
+        resourceId:
+          type: string
+          format: uuid
+        desiredStart:
+          type: string
+          format: date-time
+        desiredEnd:
+          type: string
+          format: date-time
+
+    CheckInOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        checkInTime:
+          type: string
+          format: date-time
+          nullable: true
+        checkOutTime:
+          type: string
+          format: date-time
+          nullable: true
+        actualDurationMinutes:
+          type: integer
+          nullable: true
+
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        resourceId:
+          type: string
+          format: uuid
+        reportedBy:
+          type: string
+          format: uuid
+        description:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [Open, InReview, Resolved]
+        reportedAt:
+          type: string
+          format: date-time
+
+    IncidentCreateRequest:
+      type: object
+      required: [resourceId, description]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        resourceId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        imageUrl:
+          type: string
+
+    Maintenance:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        resourceId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        description:
+          type: string
+        cost:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [Scheduled, InProgress, Completed]
+        createdBy:
+          type: string
+          format: uuid
+
+    MaintenanceCreateRequest:
+      type: object
+      required: [resourceId, startTime, endTime]
+      properties:
+        resourceId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        description:
+          type: string
+        cost:
+          type: number
+          format: double
+
+    Violation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [Late, NoShow]
+        recordedAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+          nullable: true
+
+    Restriction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+
+    RestrictionCreateRequest:
+      type: object
+      required: [userId, startDate, endDate, reason]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    UtilizationReport:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              resourceId:
+                type: string
+                format: uuid
+              resourceName:
+                type: string
+              totalBookedHours:
+                type: number
+              utilizationRate:
+                type: number
+                description: Tỷ lệ sử dụng (%) trong khoảng thời gian
