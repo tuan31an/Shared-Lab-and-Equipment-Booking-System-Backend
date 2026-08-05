@@ -16,4 +16,8 @@
     <ProjectReference Include="..\LabBooking.Domain\LabBooking.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Seeding\" />
+  </ItemGroup>
+
 </Project>

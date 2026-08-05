@@ -1,6 +1,7 @@
 using LabBooking.API;
 using LabBooking.Application;
 using LabBooking.Infrastructure.Sqlserver;
+using LabBooking.Infrastructure.Sqlserver.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Seed database
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await DataSeeder.SeedAsync(context);
+}
 
 app.UseExceptionHandler();
 
