@@ -11,18 +11,16 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence
     /// </summary>
     public class Repository<T> : IRepository<T> where T : BaseEntity
     {
-        private readonly ApplicationDbContext _dbContext;
         private readonly DbSet<T> _dbSet;
 
         public Repository(ApplicationDbContext dbContext)
         {
-            _dbContext = dbContext;
             _dbSet = dbContext.Set<T>();
         }
 
         public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+            return await _dbSet.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         }
 
         public async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -38,7 +36,7 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence
             var query = _dbSet.AsNoTracking();
             var totalCount = await query.CountAsync(cancellationToken);
             var items = await query
-                .OrderBy(e => e.Id)
+                .OrderByDescending(e => e.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
