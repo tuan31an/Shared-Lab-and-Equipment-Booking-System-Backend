@@ -15,13 +15,15 @@ public class MaintenanceConfiguration : IEntityTypeConfiguration<Maintenance>
 
         builder.HasIndex(m => m.ResourceId);
 
-        builder.HasOne<Resource>()
-            .WithMany()
+        builder.HasQueryFilter(m => !m.Resource.IsDeleted);
+
+        builder.HasOne(m => m.Resource)
+            .WithMany(r => r.Maintenances)
             .HasForeignKey(m => m.ResourceId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
+        builder.HasOne(m => m.CreatedByUser)
             .WithMany()
             .HasForeignKey(m => m.CreatedBy)
             .OnDelete(DeleteBehavior.Restrict);

@@ -25,5 +25,14 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Thời điểm ghi nhận.</summary>
         public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Booking liên quan.</summary>
+        public Booking? Booking { get; set; }
+
+        /// <summary>Phòng/thiết bị bị sự cố.</summary>
+        public Resource Resource { get; set; } = null!;
+
+        /// <summary>Người ghi nhận.</summary>
+        public User ReportedByUser { get; set; } = null!;
     }
 }

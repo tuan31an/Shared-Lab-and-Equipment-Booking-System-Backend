@@ -17,13 +17,13 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
         builder.HasIndex(r => r.DepartmentId);
         builder.HasIndex(r => r.LabManagerId);
 
-        builder.HasOne<Department>()
-            .WithMany()
+        builder.HasOne(r => r.Department)
+            .WithMany(d => d.Resources)
             .HasForeignKey(r => r.DepartmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
-            .WithMany()
+        builder.HasOne(r => r.LabManager)
+            .WithMany(u => u.ManagedResources)
             .HasForeignKey(r => r.LabManagerId)
             .OnDelete(DeleteBehavior.Restrict);
 

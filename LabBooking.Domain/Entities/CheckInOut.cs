@@ -18,5 +18,8 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Thời lượng sử dụng thực tế (phút), tính toán từ check-in/check-out.</summary>
         public int? ActualDuration { get; set; }
+
+        /// <summary>Booking tương ứng.</summary>
+        public Booking Booking { get; set; } = null!;
     }
 }

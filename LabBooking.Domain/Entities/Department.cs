@@ -8,5 +8,11 @@ namespace LabBooking.Domain.Entities
     {
         /// <summary>Tên khoa/bộ môn (UNIQUE).</summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>Danh sách User thuộc khoa/bộ môn.</summary>
+        public ICollection<User> Users { get; set; } = [];
+
+        /// <summary>Danh sách Resource do khoa/bộ môn quản lý.</summary>
+        public ICollection<Resource> Resources { get; set; } = [];
     }
 }

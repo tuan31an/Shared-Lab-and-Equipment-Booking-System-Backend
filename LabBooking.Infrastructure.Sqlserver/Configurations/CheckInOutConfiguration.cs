@@ -12,9 +12,11 @@ public class CheckInOutConfiguration : IEntityTypeConfiguration<CheckInOut>
 
         builder.HasIndex(c => c.BookingId).IsUnique();
 
-        builder.HasOne<Booking>()
-            .WithMany()
-            .HasForeignKey(c => c.BookingId)
+        builder.HasQueryFilter(c => !c.Booking.Requester.IsDeleted && !c.Booking.Resource.IsDeleted);
+
+        builder.HasOne(c => c.Booking)
+            .WithOne(b => b.CheckInOut)
+            .HasForeignKey<CheckInOut>(c => c.BookingId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
     }

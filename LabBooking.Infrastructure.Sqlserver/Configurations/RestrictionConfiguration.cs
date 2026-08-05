@@ -16,13 +16,15 @@ public class RestrictionConfiguration : IEntityTypeConfiguration<Restriction>
 
         builder.HasIndex(r => r.UserId);
 
-        builder.HasOne<User>()
-            .WithMany()
+        builder.HasQueryFilter(r => !r.User.IsDeleted);
+
+        builder.HasOne(r => r.User)
+            .WithMany(u => u.Restrictions)
             .HasForeignKey(r => r.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
+        builder.HasOne(r => r.CreatedByUser)
             .WithMany()
             .HasForeignKey(r => r.CreatedBy)
             .OnDelete(DeleteBehavior.Restrict);

@@ -14,5 +14,8 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Diễn giải áp dụng.</summary>
         public string? Description { get; set; }
+
+        /// <summary>Danh sách Booking áp dụng quy tắc này.</summary>
+        public ICollection<Booking> Bookings { get; set; } = [];
     }
 }

@@ -16,5 +16,8 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Trạng thái đã đọc.</summary>
         public bool IsRead { get; set; }
+
+        /// <summary>Người nhận.</summary>
+        public User User { get; set; } = null!;
     }
 }

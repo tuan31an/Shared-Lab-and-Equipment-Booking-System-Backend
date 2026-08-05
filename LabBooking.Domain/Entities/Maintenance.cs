@@ -28,5 +28,11 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Người lập lịch (FK → User, Lab Manager).</summary>
         public Guid? CreatedBy { get; set; }
+
+        /// <summary>Phòng/thiết bị bảo trì.</summary>
+        public Resource Resource { get; set; } = null!;
+
+        /// <summary>Người lập lịch (Lab Manager).</summary>
+        public User? CreatedByUser { get; set; }
     }
 }

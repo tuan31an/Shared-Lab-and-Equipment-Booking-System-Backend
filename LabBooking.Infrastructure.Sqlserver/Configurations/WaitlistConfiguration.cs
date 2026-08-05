@@ -13,14 +13,16 @@ public class WaitlistConfiguration : IEntityTypeConfiguration<Waitlist>
 
         builder.HasIndex(w => new { w.ResourceId, w.DesiredStart });
 
-        builder.HasOne<Resource>()
-            .WithMany()
+        builder.HasQueryFilter(w => !w.Requester.IsDeleted && !w.Resource.IsDeleted);
+
+        builder.HasOne(w => w.Resource)
+            .WithMany(r => r.Waitlists)
             .HasForeignKey(w => w.ResourceId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
-            .WithMany()
+        builder.HasOne(w => w.Requester)
+            .WithMany(u => u.Waitlists)
             .HasForeignKey(w => w.RequesterId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
