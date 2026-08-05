@@ -1,9 +1,10 @@
 using LabBooking.Domain.Entities;
+using LabBooking.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabBooking.Infrastructure.Sqlserver.Persistence
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : DbContext, IUnitOfWork
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
