@@ -13,6 +13,7 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence
 
         public DbSet<Department> Departments => Set<Department>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<Resource> Resources => Set<Resource>();
         public DbSet<PriorityRule> PriorityRules => Set<PriorityRule>();
         public DbSet<Booking> Bookings => Set<Booking>();
