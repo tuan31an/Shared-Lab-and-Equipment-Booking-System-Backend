@@ -21,5 +21,11 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Người áp dụng (FK → User, Admin).</summary>
         public Guid? CreatedBy { get; set; }
+
+        /// <summary>Người bị hạn chế.</summary>
+        public User User { get; set; } = null!;
+
+        /// <summary>Người áp dụng (Admin).</summary>
+        public User? CreatedByUser { get; set; }
     }
 }

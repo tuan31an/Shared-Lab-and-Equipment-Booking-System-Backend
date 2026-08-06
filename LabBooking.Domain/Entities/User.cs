@@ -28,5 +28,29 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Soft-delete thay vì xoá cứng để giữ toàn vẹn lịch sử.</summary>
         public bool IsDeleted { get; set; }
+
+        /// <summary>Khoa/bộ môn trực thuộc.</summary>
+        public Department? Department { get; set; }
+
+        /// <summary>Danh sách phòng/thiết bị đang phụ trách (Lab Manager).</summary>
+        public ICollection<Resource> ManagedResources { get; set; } = [];
+
+        /// <summary>Danh sách Booking đã tạo (Requester).</summary>
+        public ICollection<Booking> RequestedBookings { get; set; } = [];
+
+        /// <summary>Danh sách Booking đã duyệt (Lab Manager).</summary>
+        public ICollection<Booking> ApprovedBookings { get; set; } = [];
+
+        /// <summary>Danh sách yêu cầu chờ.</summary>
+        public ICollection<Waitlist> Waitlists { get; set; } = [];
+
+        /// <summary>Danh sách vi phạm.</summary>
+        public ICollection<Violation> Violations { get; set; } = [];
+
+        /// <summary>Danh sách hạn chế bị áp dụng.</summary>
+        public ICollection<Restriction> Restrictions { get; set; } = [];
+
+        /// <summary>Danh sách thông báo đã nhận.</summary>
+        public ICollection<Notification> Notifications { get; set; } = [];
     }
 }

@@ -19,5 +19,11 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Ghi chú.</summary>
         public string? Note { get; set; }
+
+        /// <summary>Người vi phạm.</summary>
+        public User User { get; set; } = null!;
+
+        /// <summary>Booking liên quan.</summary>
+        public Booking? Booking { get; set; }
     }
 }

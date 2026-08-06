@@ -26,5 +26,11 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Thời điểm hệ thống thông báo có chỗ trống.</summary>
         public DateTime? NotifiedAt { get; set; }
+
+        /// <summary>Phòng/thiết bị mong muốn.</summary>
+        public Resource Resource { get; set; } = null!;
+
+        /// <summary>Người chờ.</summary>
+        public User Requester { get; set; } = null!;
     }
 }

@@ -14,18 +14,20 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
 
         builder.HasIndex(i => i.ResourceId);
 
-        builder.HasOne<Booking>()
-            .WithMany()
+        builder.HasQueryFilter(i => !i.ReportedByUser.IsDeleted && !i.Resource.IsDeleted);
+
+        builder.HasOne(i => i.Booking)
+            .WithMany(b => b.Incidents)
             .HasForeignKey(i => i.BookingId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Resource>()
-            .WithMany()
+        builder.HasOne(i => i.Resource)
+            .WithMany(r => r.Incidents)
             .HasForeignKey(i => i.ResourceId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
+        builder.HasOne(i => i.ReportedByUser)
             .WithMany()
             .HasForeignKey(i => i.ReportedBy)
             .IsRequired()

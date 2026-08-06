@@ -31,5 +31,26 @@ namespace LabBooking.Domain.Entities
 
         /// <summary>Thời điểm duyệt.</summary>
         public DateTime? ApprovedAt { get; set; }
+
+        /// <summary>Phòng/thiết bị được đặt.</summary>
+        public Resource Resource { get; set; } = null!;
+
+        /// <summary>Người đặt lịch.</summary>
+        public User Requester { get; set; } = null!;
+
+        /// <summary>Mức ưu tiên áp dụng.</summary>
+        public PriorityRule? Rule { get; set; }
+
+        /// <summary>Người duyệt (Lab Manager).</summary>
+        public User? ApprovedByUser { get; set; }
+
+        /// <summary>Bản ghi check-in/out tương ứng (1-1).</summary>
+        public CheckInOut? CheckInOut { get; set; }
+
+        /// <summary>Danh sách sự cố liên quan.</summary>
+        public ICollection<Incident> Incidents { get; set; } = [];
+
+        /// <summary>Danh sách vi phạm liên quan.</summary>
+        public ICollection<Violation> Violations { get; set; } = [];
     }
 }

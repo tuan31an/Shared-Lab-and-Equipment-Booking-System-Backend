@@ -13,8 +13,10 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 
         builder.HasIndex(n => n.UserId);
 
-        builder.HasOne<User>()
-            .WithMany()
+        builder.HasQueryFilter(n => !n.User.IsDeleted);
+
+        builder.HasOne(n => n.User)
+            .WithMany(u => u.Notifications)
             .HasForeignKey(n => n.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);

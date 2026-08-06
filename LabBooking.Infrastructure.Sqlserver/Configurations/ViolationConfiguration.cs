@@ -13,14 +13,16 @@ public class ViolationConfiguration : IEntityTypeConfiguration<Violation>
 
         builder.HasIndex(v => v.UserId);
 
-        builder.HasOne<User>()
-            .WithMany()
+        builder.HasQueryFilter(v => !v.User.IsDeleted);
+
+        builder.HasOne(v => v.User)
+            .WithMany(u => u.Violations)
             .HasForeignKey(v => v.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Booking>()
-            .WithMany()
+        builder.HasOne(v => v.Booking)
+            .WithMany(b => b.Violations)
             .HasForeignKey(v => v.BookingId)
             .OnDelete(DeleteBehavior.Restrict);
     }
