@@ -1,4 +1,5 @@
 using LabBooking.Domain.Interfaces;
+using LabBooking.Infrastructure.Sqlserver.Auth;
 using LabBooking.Infrastructure.Sqlserver.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,7 @@ namespace LabBooking.Infrastructure.Sqlserver
 
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+            services.AddScoped<ITokenService, TokenService>();
 
             return services;
         }
