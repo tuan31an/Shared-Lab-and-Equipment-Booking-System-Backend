@@ -20,6 +20,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
+        private readonly IRepository<CheckInOut> _checkInOuts;
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
 
@@ -28,6 +29,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<Resource> resources,
             IRepository<User> users,
             IRepository<PriorityRule> rules,
+            IRepository<CheckInOut> checkInOuts,
             ICurrentUser currentUser,
             IUnitOfWork uow)
         {
@@ -35,6 +37,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _resources = resources;
             _users = users;
             _rules = rules;
+            _checkInOuts = checkInOuts;
             _currentUser = currentUser;
             _uow = uow;
         }
@@ -95,6 +98,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
             var users = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);
+            await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, new[] { booking }, cancellationToken);
             return BookingEvaluation.ToDto(booking, resources, users, rules);
         }
 

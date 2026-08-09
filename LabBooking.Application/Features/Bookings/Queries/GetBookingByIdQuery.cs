@@ -18,23 +18,28 @@ namespace LabBooking.Application.Features.Bookings.Queries
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
+        private readonly IRepository<CheckInOut> _checkInOuts;
 
         public GetBookingByIdQueryHandler(
             IRepository<Booking> bookings,
             IRepository<Resource> resources,
             IRepository<User> users,
-            IRepository<PriorityRule> rules)
+            IRepository<PriorityRule> rules,
+            IRepository<CheckInOut> checkInOuts)
         {
             _bookings = bookings;
             _resources = resources;
             _users = users;
             _rules = rules;
+            _checkInOuts = checkInOuts;
         }
 
         public async Task<BookingDto> Handle(GetBookingByIdQuery request, CancellationToken cancellationToken)
         {
             var booking = await _bookings.GetByIdAsync(request.BookingId, cancellationToken)
                 ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
+
+            await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, new[] { booking }, cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
             var users = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);

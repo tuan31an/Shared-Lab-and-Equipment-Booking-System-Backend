@@ -34,6 +34,7 @@ namespace LabBooking.Application.Features.Bookings.Queries
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
+        private readonly IRepository<CheckInOut> _checkInOuts;
         private readonly ICurrentUser _currentUser;
 
         public GetBookingsQueryHandler(
@@ -41,12 +42,14 @@ namespace LabBooking.Application.Features.Bookings.Queries
             IRepository<Resource> resources,
             IRepository<User> users,
             IRepository<PriorityRule> rules,
+            IRepository<CheckInOut> checkInOuts,
             ICurrentUser currentUser)
         {
             _bookings = bookings;
             _resources = resources;
             _users = users;
             _rules = rules;
+            _checkInOuts = checkInOuts;
             _currentUser = currentUser;
         }
 
@@ -70,6 +73,8 @@ namespace LabBooking.Application.Features.Bookings.Queries
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
             var users = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);
             var rules = (await _rules.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
+
+            await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, page, cancellationToken);
 
             return new PaginationResponse<BookingDto>(
                 BookingEvaluation.ToDtos(page, resources, users, rules),

@@ -1,6 +1,7 @@
 using LabBooking.Application.Contracts;
 using LabBooking.Domain.Entities;
 using LabBooking.Domain.Enums;
+using LabBooking.Domain.Interfaces;
 using LabBooking.Domain.Scheduling;
 
 namespace LabBooking.Application.Features.Bookings
@@ -36,6 +37,9 @@ namespace LabBooking.Application.Features.Bookings
                 b.Status.ToString(),
                 b.ApprovedBy,
                 b.ApprovedAt,
+                b.CheckInOut?.CheckInTime,
+                b.CheckInOut?.CheckOutTime,
+                b.CheckInOut?.ActualDuration,
                 b.CreatedAt);
         }
 
@@ -45,6 +49,24 @@ namespace LabBooking.Application.Features.Bookings
             IReadOnlyDictionary<Guid, User> users,
             IReadOnlyDictionary<Guid, PriorityRule> rules)
             => bookings.Select(b => ToDto(b, resources, users, rules)).ToList();
+
+        /// <summary>Gắn bản ghi CheckInOut (nếu có) vào từng booking trước khi map DTO.</summary>
+        public static async Task AttachCheckInsAsync(
+            IRepository<CheckInOut> checkInOuts,
+            IEnumerable<Booking> bookings,
+            CancellationToken cancellationToken)
+        {
+            var ids = bookings.Select(b => b.Id).ToHashSet();
+            if (ids.Count == 0)
+                return;
+
+            var map = (await checkInOuts.ListAsync(c => ids.Contains(c.BookingId), cancellationToken))
+                .ToDictionary(c => c.BookingId);
+
+            foreach (var b in bookings)
+                if (map.TryGetValue(b.Id, out var cio))
+                    b.CheckInOut = cio;
+        }
 
         public static bool IsHoldingSlot(BookingStatus status)
             => status is BookingStatus.Pending or BookingStatus.Approved;
