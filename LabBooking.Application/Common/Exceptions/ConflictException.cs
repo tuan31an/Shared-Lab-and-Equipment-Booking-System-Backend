@@ -6,8 +6,12 @@ namespace LabBooking.Application.Common.Exceptions
     /// </summary>
     public class ConflictException : Exception
     {
-        public ConflictException(string message) : base(message)
+        /// <summary>Dữ liệu chi tiết kèm theo lỗi (ví dụ: danh sách khung giờ thay thế).</summary>
+        public object? Payload { get; }
+
+        public ConflictException(string message, object? payload = null) : base(message)
         {
+            Payload = payload;
         }
     }
 }

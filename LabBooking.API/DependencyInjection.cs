@@ -1,4 +1,5 @@
 using LabBooking.API.Common;
+using LabBooking.Application.Common;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -14,6 +15,9 @@ namespace LabBooking.API
             {
                 options.Filters.Add<ApiResponseWrapperFilter>();
             });
+
+            services.AddHttpContextAccessor();
+            services.AddScoped<ICurrentUser, CurrentUserService>();
 
             // Chuyển mọi exception chưa xử lý thành envelope ApiResponse.
             services.AddExceptionHandler<GlobalExceptionHandler>();
