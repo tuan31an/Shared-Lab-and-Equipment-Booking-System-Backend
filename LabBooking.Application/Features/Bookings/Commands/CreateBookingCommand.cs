@@ -80,8 +80,11 @@ namespace LabBooking.Application.Features.Bookings.Commands
             var dueMaintenances = await _maintenances.ListAsync(m => m.ResourceId == request.ResourceId, cancellationToken);
 
             var conflicts = BookingEvaluation.Overlapping(dueBookings, request.StartTime, request.EndTime).ToList();
+            var maintenanceOverlap = dueMaintenances
+                .Where(m => m.StartTime < request.EndTime && request.StartTime < m.EndTime)
+                .ToList();
 
-            if (conflicts.Count > 0)
+            if (conflicts.Count > 0 || maintenanceOverlap.Count > 0)
             {
                 var resourcesMap = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
                 var usersMap = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);
