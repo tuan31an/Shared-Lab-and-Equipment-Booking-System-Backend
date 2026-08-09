@@ -59,12 +59,15 @@ namespace LabBooking.Application.Features.Bookings.Commands
             var dueMaintenances = await _maintenances.ListAsync(m => m.ResourceId == request.ResourceId, cancellationToken);
 
             var conflicting = BookingEvaluation.Overlapping(dueBookings, request.StartTime, request.EndTime).ToList();
+            var conflictingMaintenance = dueMaintenances.Any(m =>
+                m.Status != MaintenanceStatus.Completed &&
+                m.StartTime < request.EndTime && request.StartTime < m.EndTime);
             var suggested = BookingEvaluation.SuggestAlternatives(
                 BookingEvaluation.BlockedRanges(request.StartTime, request.EndTime, dueBookings, dueMaintenances),
                 request.StartTime,
                 request.EndTime);
 
-            if (conflicting.Count == 0)
+            if (conflicting.Count == 0 && !conflictingMaintenance)
                 return new BookingConflictResponse(false, Array.Empty<BookingDto>(), suggested);
 
             var resourcesMap = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);

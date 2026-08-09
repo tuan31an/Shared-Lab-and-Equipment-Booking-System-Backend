@@ -94,6 +94,7 @@ namespace LabBooking.Application.Features.Bookings
                 .Select(b => (b.StartTime, b.EndTime));
 
             var maintenanceRanges = maintenances
+                .Where(m => m.Status != MaintenanceStatus.Completed)
                 .Where(m => m.StartTime < to && from < m.EndTime)
                 .Select(m => (m.StartTime, m.EndTime));
 
