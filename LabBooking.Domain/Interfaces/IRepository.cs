@@ -15,6 +15,9 @@ namespace LabBooking.Domain.Interfaces
 
         Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default);
 
+        /// <summary>Trả về danh sách bản ghi theo điều kiện lọc (không phân trang).</summary>
+        Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default);
+
         Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
 
         Task AddAsync(T entity, CancellationToken cancellationToken = default);

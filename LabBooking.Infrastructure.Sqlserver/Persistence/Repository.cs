@@ -34,6 +34,14 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence
             return await _dbSet.AsNoTracking().ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>>? predicate, CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.AsNoTracking();
+            if (predicate != null)
+                query = query.Where(predicate);
+            return await query.ToListAsync(cancellationToken);
+        }
+
         public async Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
             pageNumber = Math.Max(pageNumber, 1);

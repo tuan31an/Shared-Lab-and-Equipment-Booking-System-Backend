@@ -38,7 +38,7 @@ namespace LabBooking.Domain.Common
         /// Đánh dấu Entity vừa được thay đổi. Gọi trong các phương thức nghiệp vụ
         /// làm thay đổi trạng thái để cập nhật lại mốc thời gian.
         /// </summary>
-        protected void MarkUpdated()
+        public void MarkUpdated()
         {
             UpdatedAt = DateTime.UtcNow;
         }
