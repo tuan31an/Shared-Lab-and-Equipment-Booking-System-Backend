@@ -28,6 +28,8 @@ namespace LabBooking.Application.Features.Maintenances.Commands
 
     public class CreateMaintenanceCommandHandler : IRequestHandler<CreateMaintenanceCommand, MaintenanceDto>
     {
+        private const decimal MaximumCost = 9_999_999_999.99m;
+
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<Maintenance> _maintenances;
         private readonly IRepository<Booking> _bookings;
@@ -52,6 +54,10 @@ namespace LabBooking.Application.Features.Maintenances.Commands
         {
             if (request.EndTime <= request.StartTime)
                 throw new ArgumentException("EndTime must be after StartTime.");
+            if (request.StartTime <= DateTime.UtcNow)
+                throw new ArgumentException("StartTime must be in the future.");
+            if (request.Cost is < 0 or > MaximumCost)
+                throw new ArgumentException($"Cost must be between 0 and {MaximumCost}.");
 
             var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
@@ -81,7 +87,7 @@ namespace LabBooking.Application.Features.Maintenances.Commands
                 ResourceId = request.ResourceId,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                Description = request.Description,
+                Description = request.Description?.Trim(),
                 Cost = request.Cost,
                 Status = MaintenanceStatus.Scheduled,
                 CreatedBy = currentUser

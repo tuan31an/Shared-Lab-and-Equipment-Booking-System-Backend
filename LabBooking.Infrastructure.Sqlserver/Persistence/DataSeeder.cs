@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using LabBooking.Domain.Entities;
@@ -10,16 +11,42 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence;
 
 public static class DataSeeder
 {
+    // Development-only account password: ChangeMe123!
+    private const string DevelopmentPasswordHash = "$2b$12$g7KgCoZKtmX0EaVxVZ6hTuc7NxKmDeLkvXm996Bg1w1gcrs6DlLOa";
+
     public static async Task SeedAsync(ApplicationDbContext context)
     {
         if (context == null) throw new ArgumentNullException(nameof(context));
 
-        // Apply migrations first
-        await context.Database.MigrateAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-        // If any data exists assume seeded
+        // Existing development databases created by older versions had blank
+        // password hashes. Repair only the known sample accounts, then stop.
         if (await context.Departments.AnyAsync())
+        {
+            var sampleEmails = new[]
+            {
+                "admin@example.com",
+                "admin2@example.com",
+                "alice.manager@example.com",
+                "evan.electronics@example.com",
+                "mary.mechanical@example.com",
+                "bob.requester@example.com",
+                "charlie.student@example.com",
+                "diana.researcher@example.com"
+            };
+            var sampleUsers = await context.Users
+                .Where(user => sampleEmails.Contains(user.Email) && user.PasswordHash == "")
+                .ToListAsync();
+            foreach (var sampleUser in sampleUsers)
+                sampleUser.PasswordHash = DevelopmentPasswordHash;
+
+            if (sampleUsers.Count > 0)
+                await context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
             return;
+        }
 
         // Departments
         var cs = new Department { Name = "Computer Science" };
@@ -34,7 +61,7 @@ public static class DataSeeder
         {
             FullName = "System Admin",
             Email = "admin@example.com",
-            PasswordHash = "", // TODO: replace with real hash in production
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.Admin,
             DepartmentId = null
         };
@@ -43,7 +70,7 @@ public static class DataSeeder
         {
             FullName = "Backup Admin",
             Email = "admin2@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.Admin,
             DepartmentId = null
         };
@@ -52,7 +79,7 @@ public static class DataSeeder
         {
             FullName = "Dr. Alice Manager",
             Email = "alice.manager@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.LabManager,
             DepartmentId = cs.Id
         };
@@ -61,7 +88,7 @@ public static class DataSeeder
         {
             FullName = "Dr. Evan Electronics",
             Email = "evan.electronics@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.LabManager,
             DepartmentId = electronics.Id
         };
@@ -70,7 +97,7 @@ public static class DataSeeder
         {
             FullName = "Dr. Mary Mechanical",
             Email = "mary.mechanical@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.LabManager,
             DepartmentId = mechanical.Id
         };
@@ -79,7 +106,7 @@ public static class DataSeeder
         {
             FullName = "Bob Requester",
             Email = "bob.requester@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.Requester,
             DepartmentId = cs.Id
         };
@@ -88,7 +115,7 @@ public static class DataSeeder
         {
             FullName = "Charlie Student",
             Email = "charlie.student@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.Requester,
             DepartmentId = electronics.Id
         };
@@ -97,7 +124,7 @@ public static class DataSeeder
         {
             FullName = "Diana Researcher",
             Email = "diana.researcher@example.com",
-            PasswordHash = "",
+            PasswordHash = DevelopmentPasswordHash,
             Role = UserRole.Requester,
             DepartmentId = mechanical.Id
         };
@@ -233,7 +260,7 @@ public static class DataSeeder
             Description = "Calibration",
             Cost = 150.0m,
             Status = MaintenanceStatus.Scheduled,
-            CreatedBy = labManager.Id
+            CreatedBy = labManagerElectronics.Id
         };
 
         await context.Maintenances.AddAsync(maintenance);
@@ -363,5 +390,7 @@ public static class DataSeeder
 
         await context.Notifications.AddRangeAsync(new[] { notification2, notification3 });
         await context.SaveChangesAsync();
+
+        await transaction.CommitAsync();
     }
 }

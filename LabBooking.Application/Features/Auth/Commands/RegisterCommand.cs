@@ -11,10 +11,12 @@ namespace LabBooking.Application.Features.Auth.Commands
     public class RegisterCommand : IRequest<UserDto>
     {
         [Required(ErrorMessage = "FullName is required.")]
+        [MaxLength(200)]
         public string FullName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Email is not a valid email address.")]
+        [MaxLength(200)]
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Password is required.")]
@@ -27,24 +29,40 @@ namespace LabBooking.Application.Features.Auth.Commands
     public class RegisterCommandHandler : IRequestHandler<RegisterCommand, UserDto>
     {
         private readonly IRepository<User> _users;
+        private readonly IRepository<Department> _departments;
         private readonly IUnitOfWork _uow;
 
-        public RegisterCommandHandler(IRepository<User> users, IUnitOfWork uow)
+        public RegisterCommandHandler(
+            IRepository<User> users,
+            IRepository<Department> departments,
+            IUnitOfWork uow)
         {
             _users = users;
+            _departments = departments;
             _uow = uow;
         }
 
         public async Task<UserDto> Handle(RegisterCommand request, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(request.Password))
+                throw new ArgumentException("Password is required.");
+
+            var fullName = request.FullName.Trim();
+            if (fullName.Length == 0)
+                throw new ArgumentException("FullName is required.");
+
             var email = request.Email.Trim();
             var existing = await _users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
             if (existing != null)
                 throw new ConflictException("Email already exists.");
 
+            if (request.DepartmentId.HasValue &&
+                await _departments.GetByIdAsync(request.DepartmentId.Value, cancellationToken) == null)
+                throw new NotFoundException($"Department {request.DepartmentId} not found.");
+
             var user = new User
             {
-                FullName = request.FullName.Trim(),
+                FullName = fullName,
                 Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = UserRole.Requester,

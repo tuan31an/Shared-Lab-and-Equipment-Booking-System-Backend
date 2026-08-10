@@ -53,8 +53,13 @@ namespace LabBooking.Application.Features.Bookings.Commands
             if (booking.Status != BookingStatus.Pending)
                 throw new ArgumentException("Only pending bookings can be approved.");
 
+            if (booking.StartTime <= DateTime.UtcNow)
+                throw new ArgumentException("A booking cannot be approved after its start time.");
+
             var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {booking.ResourceId} not found.");
+            if (resource.Status != ResourceStatus.Available)
+                throw new ConflictException($"Resource is currently {resource.Status}.");
 
             var currentUser = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");

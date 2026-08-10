@@ -18,14 +18,18 @@ namespace LabBooking.Application.Features.Resources.Commands
         public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Type is required.")]
-        public ResourceType Type { get; set; }
+        [EnumDataType(typeof(ResourceType), ErrorMessage = "Type is invalid.")]
+        public ResourceType? Type { get; set; }
 
         public string? Specifications { get; set; }
+        [MaxLength(500)]
         public string? ImageUrl { get; set; }
         public string? UsageRules { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? LabManagerId { get; set; }
-        public ResourceStatus Status { get; set; } = ResourceStatus.Available;
+        [Required(ErrorMessage = "Status is required.")]
+        [EnumDataType(typeof(ResourceStatus), ErrorMessage = "Status is invalid.")]
+        public ResourceStatus? Status { get; set; }
     }
 
     public class UpdateResourceCommandHandler : IRequestHandler<UpdateResourceCommand, ResourceDto>
@@ -45,23 +49,37 @@ namespace LabBooking.Application.Features.Resources.Commands
 
         public async Task<ResourceDto> Handle(UpdateResourceCommand request, CancellationToken cancellationToken)
         {
+            if (!request.Type.HasValue || !Enum.IsDefined(request.Type.Value))
+                throw new ArgumentException("Type is invalid.");
+            if (!request.Status.HasValue || !Enum.IsDefined(request.Status.Value))
+                throw new ArgumentException("Status is invalid.");
+
             var resource = await _resources.GetByIdAsync(request.Id, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.Id} not found.");
+
+            var name = request.Name.Trim();
+            if (name.Length == 0)
+                throw new ArgumentException("Name is required.");
 
             if (request.DepartmentId.HasValue && await _departments.GetByIdAsync(request.DepartmentId.Value, cancellationToken) == null)
                 throw new NotFoundException($"Department {request.DepartmentId} not found.");
 
-            if (request.LabManagerId.HasValue && await _users.GetByIdAsync(request.LabManagerId.Value, cancellationToken) == null)
-                throw new NotFoundException($"User {request.LabManagerId} not found.");
+            if (request.LabManagerId.HasValue)
+            {
+                var manager = await _users.GetByIdAsync(request.LabManagerId.Value, cancellationToken)
+                    ?? throw new NotFoundException($"User {request.LabManagerId} not found.");
+                if (manager.Role != UserRole.LabManager)
+                    throw new ArgumentException("LabManagerId must reference a user with the LabManager role.");
+            }
 
-            resource.Name = request.Name.Trim();
-            resource.Type = request.Type;
+            resource.Name = name;
+            resource.Type = request.Type.Value;
             resource.Specifications = request.Specifications;
-            resource.ImageUrl = request.ImageUrl;
+            resource.ImageUrl = request.ImageUrl?.Trim();
             resource.UsageRules = request.UsageRules;
             resource.DepartmentId = request.DepartmentId;
             resource.LabManagerId = request.LabManagerId;
-            resource.Status = request.Status;
+            resource.Status = request.Status.Value;
             resource.MarkUpdated();
 
             _resources.Update(resource);

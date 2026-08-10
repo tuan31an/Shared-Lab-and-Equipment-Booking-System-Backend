@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using LabBooking.Application.Common.Exceptions;
 using LabBooking.Application.Contracts;
 using LabBooking.Domain.Entities;
+using LabBooking.Domain.Enums;
 using LabBooking.Domain.Interfaces;
 using MediatR;
 
@@ -10,6 +11,7 @@ namespace LabBooking.Application.Features.Auth.Commands
     public class RefreshCommand : IRequest<AuthResponse>
     {
         [Required(ErrorMessage = "RefreshToken is required.")]
+        [MaxLength(128)]
         public string RefreshToken { get; set; } = string.Empty;
     }
 
@@ -38,7 +40,7 @@ namespace LabBooking.Application.Features.Auth.Commands
             _refreshTokens.Update(refreshToken);
 
             var user = await _users.GetByIdAsync(refreshToken.UserId, cancellationToken);
-            if (user == null)
+            if (user == null || user.Status == UserStatus.Disabled)
                 throw new UnauthorizedException("Refresh token is invalid or expired.");
 
             return await AuthResultFactory.BuildAsync(user, _refreshTokens, _tokenService, _uow, cancellationToken);

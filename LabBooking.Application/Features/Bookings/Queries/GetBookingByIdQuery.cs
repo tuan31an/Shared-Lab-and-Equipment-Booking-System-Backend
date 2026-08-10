@@ -1,3 +1,4 @@
+using LabBooking.Application.Common;
 using LabBooking.Application.Common.Exceptions;
 using LabBooking.Application.Contracts;
 using LabBooking.Application.Features.Bookings;
@@ -19,25 +20,37 @@ namespace LabBooking.Application.Features.Bookings.Queries
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<CheckInOut> _checkInOuts;
+        private readonly ICurrentUser _currentUser;
 
         public GetBookingByIdQueryHandler(
             IRepository<Booking> bookings,
             IRepository<Resource> resources,
             IRepository<User> users,
             IRepository<PriorityRule> rules,
-            IRepository<CheckInOut> checkInOuts)
+            IRepository<CheckInOut> checkInOuts,
+            ICurrentUser currentUser)
         {
             _bookings = bookings;
             _resources = resources;
             _users = users;
             _rules = rules;
             _checkInOuts = checkInOuts;
+            _currentUser = currentUser;
         }
 
         public async Task<BookingDto> Handle(GetBookingByIdQuery request, CancellationToken cancellationToken)
         {
             var booking = await _bookings.GetByIdAsync(request.BookingId, cancellationToken)
                 ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
+
+            var currentUserId = _currentUser.UserId
+                ?? throw new UnauthorizedException("Authentication required.");
+            if (_currentUser.Role != "Admin" && booking.RequesterId != currentUserId)
+            {
+                var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
+                if (_currentUser.Role != "LabManager" || resource?.LabManagerId != currentUserId)
+                    throw new UnauthorizedException("You do not have permission to view this booking.");
+            }
 
             await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, new[] { booking }, cancellationToken);
 

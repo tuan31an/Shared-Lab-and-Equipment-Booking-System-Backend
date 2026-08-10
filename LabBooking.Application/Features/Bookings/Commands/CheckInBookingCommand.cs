@@ -56,7 +56,12 @@ namespace LabBooking.Application.Features.Bookings.Commands
                 ?? throw new UnauthorizedException("Authentication required.");
 
             var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
-            var isManagerOrAdmin = _currentUser.Role == "Admin" || resource?.LabManagerId == currentUser;
+            if (resource == null)
+                throw new NotFoundException($"Resource {booking.ResourceId} not found.");
+            if (resource.Status != ResourceStatus.Available)
+                throw new ConflictException($"Resource is currently {resource.Status}.");
+
+            var isManagerOrAdmin = _currentUser.Role == "Admin" || resource.LabManagerId == currentUser;
             if (booking.RequesterId != currentUser && !isManagerOrAdmin)
                 throw new UnauthorizedException("Only the requester, the Lab Manager, or an Admin can check in.");
 

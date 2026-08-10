@@ -51,6 +51,8 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
             var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
+            if (resource.Status != ResourceStatus.Available)
+                return new BookingConflictResponse(true, [], []);
 
             var dueBookings = await _bookings.ListAsync(b =>
                 b.ResourceId == request.ResourceId &&

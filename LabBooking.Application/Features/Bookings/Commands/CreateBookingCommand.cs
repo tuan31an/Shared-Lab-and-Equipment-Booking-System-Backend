@@ -35,6 +35,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<Maintenance> _maintenances;
+        private readonly IRepository<Restriction> _restrictions;
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
 
@@ -44,6 +45,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<Maintenance> maintenances,
+            IRepository<Restriction> restrictions,
             ICurrentUser currentUser,
             IUnitOfWork uow)
         {
@@ -52,26 +54,44 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _users = users;
             _rules = rules;
             _maintenances = maintenances;
+            _restrictions = restrictions;
             _currentUser = currentUser;
             _uow = uow;
         }
 
         public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
         {
+            var now = DateTime.UtcNow;
+
             if (request.EndTime <= request.StartTime)
                 throw new ArgumentException("EndTime must be after StartTime.");
 
-            if (request.StartTime <= DateTime.UtcNow)
+            if (request.StartTime <= now)
                 throw new ArgumentException("StartTime must be in the future.");
+
+            var purpose = request.Purpose.Trim();
+            if (purpose.Length == 0)
+                throw new ArgumentException("Purpose is required.");
 
             var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
+            if (resource.Status != ResourceStatus.Available)
+                throw new ConflictException($"Resource is currently {resource.Status}.");
 
             if (request.PriorityRuleId.HasValue && await _rules.GetByIdAsync(request.PriorityRuleId.Value, cancellationToken) == null)
                 throw new NotFoundException($"Priority rule {request.PriorityRuleId} not found.");
 
             var requesterId = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
+
+            var requester = await _users.GetByIdAsync(requesterId, cancellationToken)
+                ?? throw new UnauthorizedException("Authentication required.");
+            var today = now.Date;
+            var hasActiveRestriction = await _restrictions.FirstOrDefaultAsync(r =>
+                r.UserId == requesterId && r.StartDate <= today && today <= r.EndDate,
+                cancellationToken) != null;
+            if (requester.Status != UserStatus.Active || hasActiveRestriction)
+                throw new UnauthorizedException("This account is not allowed to create bookings.");
 
             var dueBookings = await _bookings.ListAsync(b =>
                 b.ResourceId == request.ResourceId &&
@@ -81,6 +101,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
             var conflicts = BookingEvaluation.Overlapping(dueBookings, request.StartTime, request.EndTime).ToList();
             var maintenanceOverlap = dueMaintenances
+                .Where(m => m.Status != MaintenanceStatus.Completed)
                 .Where(m => m.StartTime < request.EndTime && request.StartTime < m.EndTime)
                 .ToList();
 
@@ -108,7 +129,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
                 RuleId = request.PriorityRuleId,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                Purpose = request.Purpose.Trim(),
+                Purpose = purpose,
                 Status = BookingStatus.Pending
             };
 
