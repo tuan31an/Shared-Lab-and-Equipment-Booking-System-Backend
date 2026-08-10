@@ -48,6 +48,18 @@ namespace LabBooking.API.Controllers
         public async Task<IActionResult> Cancel(Guid bookingId)
             => Ok(await _sender.Send(new CancelBookingCommand { BookingId = bookingId }));
 
+        [HttpPost("{bookingId:guid}/checkin")]
+        public async Task<IActionResult> CheckIn(Guid bookingId, [FromBody] CheckInBookingCommand? command)
+        {
+            command ??= new CheckInBookingCommand();
+            command.BookingId = bookingId;
+            return Ok(await _sender.Send(command));
+        }
+
+        [HttpPost("{bookingId:guid}/checkout")]
+        public async Task<IActionResult> CheckOut(Guid bookingId)
+            => Ok(await _sender.Send(new CheckOutBookingCommand { BookingId = bookingId }));
+
         [HttpGet("{bookingId:guid}")]
         public async Task<IActionResult> GetById(Guid bookingId)
             => Ok(await _sender.Send(new GetBookingByIdQuery { BookingId = bookingId }));

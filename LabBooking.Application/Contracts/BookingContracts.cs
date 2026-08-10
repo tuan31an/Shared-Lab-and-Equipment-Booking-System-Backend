@@ -16,6 +16,9 @@ namespace LabBooking.Application.Contracts
         string Status,
         Guid? ApprovedBy,
         DateTime? ApprovedAt,
+        DateTime? CheckInTime,
+        DateTime? CheckOutTime,
+        int? ActualDuration,
         DateTime CreatedAt);
 
     public record AvailabilitySlotDto(

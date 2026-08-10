@@ -9,15 +9,18 @@ using MediatR;
 
 namespace LabBooking.Application.Features.Bookings.Commands
 {
-    public class RejectBookingCommand : IRequest<BookingDto>
+    public class CheckInBookingCommand : IRequest<BookingDto>
     {
         public Guid BookingId { get; set; }
 
-        public string? Reason { get; set; }
+        /// <summary>Số lượng người tham gia (bàn giao nhóm, tuỳ chọn).</summary>
+        public int? AttendeeCount { get; set; }
     }
 
-    public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand, BookingDto>
+    public class CheckInBookingCommandHandler : IRequestHandler<CheckInBookingCommand, BookingDto>
     {
+        private static readonly TimeSpan EarlyWindow = TimeSpan.FromHours(2);
+
         private readonly IRepository<Booking> _bookings;
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<User> _users;
@@ -26,7 +29,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
 
-        public RejectBookingCommandHandler(
+        public CheckInBookingCommandHandler(
             IRepository<Booking> bookings,
             IRepository<Resource> resources,
             IRepository<User> users,
@@ -44,36 +47,43 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _uow = uow;
         }
 
-        public async Task<BookingDto> Handle(RejectBookingCommand request, CancellationToken cancellationToken)
+        public async Task<BookingDto> Handle(CheckInBookingCommand request, CancellationToken cancellationToken)
         {
             var booking = await _bookings.GetByIdAsync(request.BookingId, cancellationToken)
                 ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
 
-            if (booking.Status != BookingStatus.Pending)
-                throw new ArgumentException("Only pending bookings can be rejected.");
+            if (booking.Status != BookingStatus.Approved)
+                throw new ArgumentException("Only approved bookings can be checked in.");
 
             var currentUser = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
 
-            if (_currentUser.Role != "Admin")
-            {
-                var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
-                if (resource?.LabManagerId != currentUser)
-                    throw new UnauthorizedException("Only the Lab Manager of this resource can reject bookings.");
-            }
+            var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
+            var isManagerOrAdmin = _currentUser.Role == "Admin" || resource?.LabManagerId == currentUser;
+            if (booking.RequesterId != currentUser && !isManagerOrAdmin)
+                throw new UnauthorizedException("Only the requester, the Lab Manager, or an Admin can check in.");
 
-            booking.Status = BookingStatus.Rejected;
-            booking.ApprovedBy = currentUser;
-            booking.ApprovedAt = DateTime.UtcNow;
-            booking.MarkUpdated();
-            _bookings.Update(booking);
+            var now = DateTime.UtcNow;
+            if (now < booking.StartTime.Subtract(EarlyWindow))
+                throw new ArgumentException($"Check-in is only allowed from {booking.StartTime.Subtract(EarlyWindow):u} onwards.");
+
+            var existing = (await _checkInOuts.ListAsync(c => c.BookingId == booking.Id, cancellationToken)).FirstOrDefault();
+            if (existing?.CheckInTime != null)
+                throw new ArgumentException("This booking has already been checked in.");
+
+            var record = existing ?? new CheckInOut { BookingId = booking.Id };
+            record.CheckInTime = now;
+            if (existing == null)
+                await _checkInOuts.AddAsync(record, cancellationToken);
+            else
+                _checkInOuts.Update(record);
+
             await _uow.SaveChangesAsync(cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
             var users = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);
             var rules = (await _rules.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
-
-            await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, new[] { booking }, cancellationToken);
+            booking.CheckInOut = record;
 
             return BookingEvaluation.ToDto(booking, resources, users, rules);
         }

@@ -6,16 +6,15 @@ using LabBooking.Domain.Entities;
 using LabBooking.Domain.Enums;
 using LabBooking.Domain.Interfaces;
 using MediatR;
-using Microsoft.Extensions.Configuration;
 
 namespace LabBooking.Application.Features.Bookings.Commands
 {
-    public class CancelBookingCommand : IRequest<BookingDto>
+    public class CheckOutBookingCommand : IRequest<BookingDto>
     {
         public Guid BookingId { get; set; }
     }
 
-    public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand, BookingDto>
+    public class CheckOutBookingCommandHandler : IRequestHandler<CheckOutBookingCommand, BookingDto>
     {
         private readonly IRepository<Booking> _bookings;
         private readonly IRepository<Resource> _resources;
@@ -23,17 +22,15 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<CheckInOut> _checkInOuts;
         private readonly ICurrentUser _currentUser;
-        private readonly IConfiguration _configuration;
         private readonly IUnitOfWork _uow;
 
-        public CancelBookingCommandHandler(
+        public CheckOutBookingCommandHandler(
             IRepository<Booking> bookings,
             IRepository<Resource> resources,
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<CheckInOut> checkInOuts,
             ICurrentUser currentUser,
-            IConfiguration configuration,
             IUnitOfWork uow)
         {
             _bookings = bookings;
@@ -42,35 +39,40 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _rules = rules;
             _checkInOuts = checkInOuts;
             _currentUser = currentUser;
-            _configuration = configuration;
             _uow = uow;
         }
 
-        public async Task<BookingDto> Handle(CancelBookingCommand request, CancellationToken cancellationToken)
+        public async Task<BookingDto> Handle(CheckOutBookingCommand request, CancellationToken cancellationToken)
         {
             var booking = await _bookings.GetByIdAsync(request.BookingId, cancellationToken)
                 ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
 
-            if (booking.RequesterId != _currentUser.UserId)
-                throw new UnauthorizedException("You can only cancel your own bookings.");
+            var currentUser = _currentUser.UserId
+                ?? throw new UnauthorizedException("Authentication required.");
 
-            if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.Rejected)
-                throw new ArgumentException("This booking cannot be cancelled in its current state.");
+            var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
+            var isManagerOrAdmin = _currentUser.Role == "Admin" || resource?.LabManagerId == currentUser;
+            if (booking.RequesterId != currentUser && !isManagerOrAdmin)
+                throw new UnauthorizedException("Only the requester, the Lab Manager, or an Admin can check out.");
 
-            var deadlineHours = double.TryParse(_configuration["Booking:CancellationDeadlineHours"], out var hours) ? hours : 2;
-            if (DateTime.UtcNow.AddHours(deadlineHours) >= booking.StartTime)
-                throw new ArgumentException($"Booking can only be cancelled more than {deadlineHours} hour(s) before the start time.");
+            var record = (await _checkInOuts.ListAsync(c => c.BookingId == booking.Id, cancellationToken)).FirstOrDefault()
+                ?? throw new ArgumentException("Booking has not been checked in yet.");
 
-            booking.Status = BookingStatus.Cancelled;
-            booking.MarkUpdated();
-            _bookings.Update(booking);
+            if (record.CheckInTime == null)
+                throw new ArgumentException("Booking has not been checked in yet.");
+
+            if (record.CheckOutTime != null)
+                throw new ArgumentException("This booking has already been checked out.");
+
+            record.CheckOutTime = DateTime.UtcNow;
+            record.ActualDuration = (int)record.CheckOutTime.Value.Subtract(record.CheckInTime.Value).TotalMinutes;
+            _checkInOuts.Update(record);
             await _uow.SaveChangesAsync(cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
             var users = (await _users.GetAllAsync(cancellationToken)).ToDictionary(u => u.Id);
             var rules = (await _rules.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
-
-            await BookingEvaluation.AttachCheckInsAsync(_checkInOuts, new[] { booking }, cancellationToken);
+            booking.CheckInOut = record;
 
             return BookingEvaluation.ToDto(booking, resources, users, rules);
         }
