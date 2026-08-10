@@ -18,6 +18,10 @@ namespace LabBooking.API.Controllers
             _sender = sender;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> List([FromQuery] GetBookingsQuery query)
+            => Ok(await _sender.Send(query));
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateBookingCommand command)
             => Created(string.Empty, await _sender.Send(command));
@@ -25,6 +29,20 @@ namespace LabBooking.API.Controllers
         [HttpPost("check-conflict")]
         public async Task<IActionResult> CheckConflict([FromBody] CheckBookingConflictCommand command)
             => Ok(await _sender.Send(command));
+
+        [HttpPost("{bookingId:guid}/approve")]
+        [Authorize(Roles = "Admin,LabManager")]
+        public async Task<IActionResult> Approve(Guid bookingId)
+            => Ok(await _sender.Send(new ApproveBookingCommand { BookingId = bookingId }));
+
+        [HttpPost("{bookingId:guid}/reject")]
+        [Authorize(Roles = "Admin,LabManager")]
+        public async Task<IActionResult> Reject(Guid bookingId, [FromBody] RejectBookingCommand? command)
+        {
+            command ??= new RejectBookingCommand { BookingId = bookingId };
+            command.BookingId = bookingId;
+            return Ok(await _sender.Send(command));
+        }
 
         [HttpPost("{bookingId:guid}/cancel")]
         public async Task<IActionResult> Cancel(Guid bookingId)
