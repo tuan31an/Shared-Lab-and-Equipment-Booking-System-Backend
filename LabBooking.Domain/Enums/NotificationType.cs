@@ -6,5 +6,6 @@ public enum NotificationType
     BookingReminder,
     WaitlistAvailable,
     BookingApproved,
-    BookingRejected
+    BookingRejected,
+    IncidentReported
 }
