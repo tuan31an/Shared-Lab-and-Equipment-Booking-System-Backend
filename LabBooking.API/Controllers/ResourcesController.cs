@@ -26,6 +26,13 @@ namespace LabBooking.API.Controllers
         public async Task<IActionResult> GetById(Guid id)
             => Ok(await _sender.Send(new GetResourceByIdQuery { Id = id }));
 
+        [HttpGet("{id:guid}/availability")]
+        public async Task<IActionResult> Availability(Guid id, [FromQuery] GetResourceAvailabilityQuery query)
+        {
+            query.ResourceId = id;
+            return Ok(await _sender.Send(query));
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateResourceCommand command)
