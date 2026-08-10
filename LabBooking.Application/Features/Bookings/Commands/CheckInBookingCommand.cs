@@ -12,9 +12,6 @@ namespace LabBooking.Application.Features.Bookings.Commands
     public class CheckInBookingCommand : IRequest<BookingDto>
     {
         public Guid BookingId { get; set; }
-
-        /// <summary>Số lượng người tham gia (bàn giao nhóm, tuỳ chọn).</summary>
-        public int? AttendeeCount { get; set; }
     }
 
     public class CheckInBookingCommandHandler : IRequestHandler<CheckInBookingCommand, BookingDto>
@@ -66,6 +63,8 @@ namespace LabBooking.Application.Features.Bookings.Commands
             var now = DateTime.UtcNow;
             if (now < booking.StartTime.Subtract(EarlyWindow))
                 throw new ArgumentException($"Check-in is only allowed from {booking.StartTime.Subtract(EarlyWindow):u} onwards.");
+            if (now > booking.EndTime)
+                throw new ArgumentException("This booking has already ended.");
 
             var existing = (await _checkInOuts.ListAsync(c => c.BookingId == booking.Id, cancellationToken)).FirstOrDefault();
             if (existing?.CheckInTime != null)

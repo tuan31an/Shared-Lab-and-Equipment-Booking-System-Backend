@@ -67,6 +67,11 @@ namespace LabBooking.Application.Features.Bookings.Commands
             record.CheckOutTime = DateTime.UtcNow;
             record.ActualDuration = (int)record.CheckOutTime.Value.Subtract(record.CheckInTime.Value).TotalMinutes;
             _checkInOuts.Update(record);
+
+            booking.Status = BookingStatus.Completed;
+            booking.MarkUpdated();
+            _bookings.Update(booking);
+
             await _uow.SaveChangesAsync(cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);

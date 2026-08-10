@@ -54,6 +54,7 @@ namespace LabBooking.Application.Features.Resources.Queries
 
             var maintenance = await _maintenances.ListAsync(m =>
                 m.ResourceId == request.ResourceId &&
+                m.Status != MaintenanceStatus.Completed &&
                 m.StartTime < request.To && request.From < m.EndTime,
                 cancellationToken);
 

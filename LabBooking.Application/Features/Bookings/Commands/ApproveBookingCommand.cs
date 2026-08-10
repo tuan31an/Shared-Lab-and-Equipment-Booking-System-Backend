@@ -21,6 +21,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<CheckInOut> _checkInOuts;
+        private readonly IRepository<Maintenance> _maintenances;
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
 
@@ -30,6 +31,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<CheckInOut> checkInOuts,
+            IRepository<Maintenance> maintenances,
             ICurrentUser currentUser,
             IUnitOfWork uow)
         {
@@ -38,6 +40,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _users = users;
             _rules = rules;
             _checkInOuts = checkInOuts;
+            _maintenances = maintenances;
             _currentUser = currentUser;
             _uow = uow;
         }
@@ -65,6 +68,14 @@ namespace LabBooking.Application.Features.Bookings.Commands
                 .Where(b => LabBooking.Domain.Scheduling.Scheduling.IsOverlap(
                     b.StartTime, b.EndTime, booking.StartTime, booking.EndTime))
                 .ToList();
+
+            var maintenanceOverlap = await _maintenances.FirstOrDefaultAsync(m =>
+                m.ResourceId == booking.ResourceId &&
+                m.Status != MaintenanceStatus.Completed &&
+                m.StartTime < booking.EndTime && booking.StartTime < m.EndTime,
+                cancellationToken);
+            if (maintenanceOverlap != null)
+                throw new ConflictException("This booking overlaps a scheduled maintenance period.");
 
             var rules = (await _rules.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
 
