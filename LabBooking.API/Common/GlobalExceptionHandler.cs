@@ -37,6 +37,8 @@ namespace LabBooking.API.Common
             }
 
             var response = ApiResponse.Fail(statusCode, messages);
+            if (exception is ConflictException conflict)
+                response.Result = conflict.Payload;
             httpContext.Response.StatusCode = (int)statusCode;
             await httpContext.Response.WriteAsJsonAsync(response, cancellationToken);
 
