@@ -1,6 +1,7 @@
 using LabBooking.Domain.Common;
 using LabBooking.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace LabBooking.Infrastructure.Sqlserver.Persistence
 {
@@ -21,6 +22,11 @@ namespace LabBooking.Infrastructure.Sqlserver.Persistence
         public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _dbSet.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        }
+
+        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
         }
 
         public async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)

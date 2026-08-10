@@ -1,4 +1,5 @@
 using LabBooking.Domain.Common;
+using System.Linq.Expressions;
 
 namespace LabBooking.Domain.Interfaces
 {
@@ -9,6 +10,8 @@ namespace LabBooking.Domain.Interfaces
     public interface IRepository<T> where T : BaseEntity
     {
         Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+        Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default);
 
