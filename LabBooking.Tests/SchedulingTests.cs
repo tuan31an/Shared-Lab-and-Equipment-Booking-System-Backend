@@ -47,6 +47,32 @@ public class SchedulingTests
     }
 
     [Fact]
+    public void FreeGaps_EmptyBusy_Returns_Whole_Window()
+    {
+        var gaps = Scheduling.FreeGaps(D(0, 8), D(0, 17), []);
+
+        Assert.Single(gaps);
+        Assert.Equal((D(0, 8), D(0, 17)), gaps[0]);
+    }
+
+    [Fact]
+    public void FreeGaps_OperatingHours_Clip_Gaps_To_Working_Window()
+    {
+        // Bận 0-10h và 12-14h → còn 10-12h và 14h-24h; giờ hoạt động 7-22 cắt đuôi.
+        var busy = new[]
+        {
+            (D(0, 0), D(0, 10)),
+            (D(0, 12), D(0, 14))
+        };
+        var gaps = Scheduling.FreeGaps(D(0, 0), D(1, 0), busy, TimeSpan.FromHours(7), TimeSpan.FromHours(22));
+
+        Assert.Contains((D(0, 10), D(0, 12)), gaps);
+        Assert.Contains((D(0, 14), D(0, 22)), gaps);
+        Assert.All(gaps, g => Assert.True(g.Start.TimeOfDay >= TimeSpan.FromHours(7)));
+        Assert.All(gaps, g => Assert.True(g.End.TimeOfDay <= TimeSpan.FromHours(22)));
+    }
+
+    [Fact]
     public void SuggestSlots_Returns_Three_Nearest_Alternatives()
     {
         // Muốn đặt 9:00 → 11:00, nhưng 9-11 đã bận.
@@ -64,5 +90,30 @@ public class SchedulingTests
         Assert.All(slots, s => Assert.True(s.Start < D(0, 9) || s.Start >= D(0, 11)));
         // Gần 9:00 nhất: 7:00-9:00.
         Assert.Equal((D(0, 7), D(0, 9)), slots[0]);
+    }
+
+    [Fact]
+    public void SuggestSlots_No_Gap_Big_Enough_Returns_Empty()
+    {
+        var slots = Scheduling.SuggestSlots(
+            [(D(0, 9), D(0, 10))],
+            D(0, 9),
+            TimeSpan.FromHours(3));
+
+        Assert.Empty(slots);
+    }
+
+    [Fact]
+    public void Merge_Keeps_Adjacent_Intervals_Separate()
+    {
+        var merged = Scheduling.Merge(new[]
+        {
+            (D(0, 9), D(0, 11)),
+            (D(0, 11), D(0, 12))
+        });
+
+        Assert.Equal(2, merged.Count);
+        Assert.Equal((D(0, 9), D(0, 11)), merged[0]);
+        Assert.Equal((D(0, 11), D(0, 12)), merged[1]);
     }
 }

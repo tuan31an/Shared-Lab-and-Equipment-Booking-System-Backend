@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -18,6 +22,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LabBooking.Domain\LabBooking.Domain.csproj" />
+    <ProjectReference Include="..\LabBooking.Application\LabBooking.Application.csproj" />
+    <ProjectReference Include="..\LabBooking.Infrastructure.Sqlserver\LabBooking.Infrastructure.Sqlserver.csproj" />
+    <ProjectReference Include="..\LabBooking.API\LabBooking.API.csproj" />
   </ItemGroup>
 
 </Project>
