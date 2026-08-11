@@ -6,6 +6,7 @@ using LabBooking.Domain.Entities;
 using LabBooking.Domain.Enums;
 using LabBooking.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 
 namespace LabBooking.Application.Features.Bookings.Commands
 {
@@ -21,8 +22,10 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<CheckInOut> _checkInOuts;
+        private readonly IRepository<Violation> _violations;
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
+        private readonly IConfiguration _configuration;
 
         public CheckOutBookingCommandHandler(
             IRepository<Booking> bookings,
@@ -30,16 +33,20 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<CheckInOut> checkInOuts,
+            IRepository<Violation> violations,
             ICurrentUser currentUser,
-            IUnitOfWork uow)
+            IUnitOfWork uow,
+            IConfiguration configuration)
         {
             _bookings = bookings;
             _resources = resources;
             _users = users;
             _rules = rules;
             _checkInOuts = checkInOuts;
+            _violations = violations;
             _currentUser = currentUser;
             _uow = uow;
+            _configuration = configuration;
         }
 
         public async Task<BookingDto> Handle(CheckOutBookingCommand request, CancellationToken cancellationToken)
@@ -71,6 +78,22 @@ namespace LabBooking.Application.Features.Bookings.Commands
             booking.Status = BookingStatus.Completed;
             booking.MarkUpdated();
             _bookings.Update(booking);
+
+            var graceMinutes = double.TryParse(_configuration["Violation:LateGraceMinutes"], out var grace) ? grace : 15;
+            var existingLate = await _violations.FirstOrDefaultAsync(v =>
+                v.BookingId == booking.Id && v.Type == ViolationType.Late, cancellationToken);
+            if (existingLate == null &&
+                record.CheckOutTime.Value > booking.EndTime.AddMinutes(graceMinutes))
+            {
+                await _violations.AddAsync(new Violation
+                {
+                    UserId = booking.RequesterId,
+                    BookingId = booking.Id,
+                    Type = ViolationType.Late,
+                    RecordedAt = DateTime.UtcNow,
+                    Note = $"Checked out {record.CheckOutTime.Value.Subtract(booking.EndTime).TotalMinutes:F0} minute(s) past the booked end time."
+                }, cancellationToken);
+            }
 
             await _uow.SaveChangesAsync(cancellationToken);
 
