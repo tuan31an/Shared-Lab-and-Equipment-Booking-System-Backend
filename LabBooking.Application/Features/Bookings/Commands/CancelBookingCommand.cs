@@ -64,6 +64,9 @@ namespace LabBooking.Application.Features.Bookings.Commands
                 throw new ArgumentException("This booking cannot be cancelled in its current state.");
 
             var deadlineHours = double.TryParse(_configuration["Booking:CancellationDeadlineHours"], out var hours) ? hours : 2;
+            if (!double.IsFinite(deadlineHours) || deadlineHours < 0)
+                throw new InvalidOperationException("Booking:CancellationDeadlineHours must be zero or greater.");
+
             if (DateTime.UtcNow.AddHours(deadlineHours) >= booking.StartTime)
                 throw new ArgumentException($"Booking can only be cancelled more than {deadlineHours} hour(s) before the start time.");
 

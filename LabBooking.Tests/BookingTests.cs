@@ -31,6 +31,13 @@ public class BookingTests
         return resource;
     }
 
+    private void AddRequester()
+    {
+        var user = new User { FullName = "Requester", Email = "req@test.com", PasswordHash = "x", Role = UserRole.Requester, Status = UserStatus.Active };
+        _users.Items.Add(user);
+        _user.UserId = user.Id;
+    }
+
     private Booking AddBooking(Resource resource, DateTime start, DateTime end, BookingStatus status = BookingStatus.Pending, Guid? ruleId = null)
     {
         var booking = new Booking
@@ -51,6 +58,7 @@ public class BookingTests
     public async Task Create_Creates_Pending_Booking()
     {
         var resource = AddResource();
+        AddRequester();
         var handler = new CreateBookingCommandHandler(_bookings, _resources, _users, _rules, _maintenances, _restrictions, _user, _uow);
 
         var dto = await handler.Handle(new CreateBookingCommand
@@ -86,6 +94,7 @@ public class BookingTests
     public async Task Create_Conflict_With_Pending_Throws_And_Suggests()
     {
         var resource = AddResource();
+        AddRequester();
         var start = InFuture(4);
         var end = start.AddHours(2);
         AddBooking(resource, start, end, BookingStatus.Pending);
@@ -109,6 +118,7 @@ public class BookingTests
     public async Task Create_Rejected_Booking_Does_Not_Conflict()
     {
         var resource = AddResource();
+        AddRequester();
         var start = InFuture(4);
         var end = start.AddHours(2);
         AddBooking(resource, start, end, BookingStatus.Rejected);
@@ -130,6 +140,7 @@ public class BookingTests
     public async Task Create_With_Active_Restriction_Throws()
     {
         var resource = AddResource();
+        AddRequester();
         var start = InFuture(4);
         var end = start.AddHours(2);
         AddBooking(resource, start, end);

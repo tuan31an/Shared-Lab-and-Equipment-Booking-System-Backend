@@ -16,6 +16,7 @@ namespace LabBooking.Application.Features.PriorityRules.Commands
         [Range(1, int.MaxValue, ErrorMessage = "PriorityLevel must be at least 1 (smaller = higher priority).")]
         public int PriorityLevel { get; set; }
 
+        [MaxLength(500)]
         public string? Description { get; set; }
     }
 
@@ -32,15 +33,19 @@ namespace LabBooking.Application.Features.PriorityRules.Commands
 
         public async Task<PriorityRuleDto> Handle(CreatePriorityRuleCommand request, CancellationToken cancellationToken)
         {
-            var existing = await _rules.FirstOrDefaultAsync(r => r.Name == request.Name.Trim() || r.PriorityLevel == request.PriorityLevel, cancellationToken);
+            var name = request.Name.Trim();
+            if (name.Length == 0)
+                throw new ArgumentException("Name is required.");
+
+            var existing = await _rules.FirstOrDefaultAsync(r => r.Name == name || r.PriorityLevel == request.PriorityLevel, cancellationToken);
             if (existing != null)
                 throw new ConflictException($"A priority rule with name '{request.Name}' or level {request.PriorityLevel} already exists.");
 
             var rule = new PriorityRule
             {
-                Name = request.Name.Trim(),
+                Name = name,
                 PriorityLevel = request.PriorityLevel,
-                Description = request.Description
+                Description = request.Description?.Trim()
             };
 
             await _rules.AddAsync(rule, cancellationToken);

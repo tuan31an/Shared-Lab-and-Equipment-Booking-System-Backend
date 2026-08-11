@@ -23,17 +23,28 @@ namespace LabBooking.Infrastructure.Sqlserver.Auth
 
         public Task<TokenResult> GenerateAsync(User user, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var jwtSection = _configuration.GetSection("Jwt");
-            var key = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+            var key = jwtSection["Key"];
             var issuer = jwtSection["Issuer"];
             var audience = jwtSection["Audience"];
-            var expiryMinutes = int.TryParse(jwtSection["ExpiryMinutes"], out var expiry) ? expiry : 0;
-            var refreshExpiryDays = int.TryParse(jwtSection["RefreshExpiryDays"], out var days) ? days : 7;
+
+            if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+                throw new InvalidOperationException("Jwt:Key must be configured with at least 32 bytes.");
+            if (string.IsNullOrWhiteSpace(issuer))
+                throw new InvalidOperationException("Jwt:Issuer is not configured.");
+            if (string.IsNullOrWhiteSpace(audience))
+                throw new InvalidOperationException("Jwt:Audience is not configured.");
+            if (!int.TryParse(jwtSection["ExpiryMinutes"], out var expiryMinutes) || expiryMinutes <= 0)
+                throw new InvalidOperationException("Jwt:ExpiryMinutes must be greater than 0.");
+            if (!int.TryParse(jwtSection["RefreshExpiryDays"], out var refreshExpiryDays) || refreshExpiryDays <= 0)
+                throw new InvalidOperationException("Jwt:RefreshExpiryDays must be greater than 0.");
 
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new(ClaimTypes.Name, user.FullName ?? user.Email),
+                new(ClaimTypes.Name, string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName),
                 new(ClaimTypes.Email, user.Email),
                 new(ClaimTypes.Role, user.Role.ToString()),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())

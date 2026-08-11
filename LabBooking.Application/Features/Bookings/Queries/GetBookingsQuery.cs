@@ -55,6 +55,9 @@ namespace LabBooking.Application.Features.Bookings.Queries
 
         public async Task<PaginationResponse<BookingDto>> Handle(GetBookingsQuery request, CancellationToken cancellationToken)
         {
+            if (request.From.HasValue && request.To.HasValue && request.To <= request.From)
+                throw new ArgumentException("To must be after From.");
+
             var all = await _bookings.ListAsync(null, cancellationToken);
 
             var scoped = await ScopeToRoleAsync(all, cancellationToken);
@@ -63,8 +66,8 @@ namespace LabBooking.Application.Features.Bookings.Queries
                     (!request.Status.HasValue || b.Status == request.Status) &&
                     (!request.ResourceId.HasValue || b.ResourceId == request.ResourceId) &&
                     (!request.RequesterId.HasValue || b.RequesterId == request.RequesterId) &&
-                    (!request.From.HasValue || b.EndTime >= request.From.Value) &&
-                    (!request.To.HasValue || b.StartTime <= request.To.Value))
+                    (!request.From.HasValue || b.EndTime > request.From.Value) &&
+                    (!request.To.HasValue || b.StartTime < request.To.Value))
                 .OrderByDescending(b => b.CreatedAt)
                 .ToList();
 

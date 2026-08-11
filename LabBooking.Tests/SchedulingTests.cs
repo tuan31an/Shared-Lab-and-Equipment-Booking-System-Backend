@@ -104,7 +104,7 @@ public class SchedulingTests
     }
 
     [Fact]
-    public void Merge_Keeps_Adjacent_Intervals_Separate()
+    public void Merge_Folds_Adjacent_Intervals_Into_One()
     {
         var merged = Scheduling.Merge(new[]
         {
@@ -112,8 +112,7 @@ public class SchedulingTests
             (D(0, 11), D(0, 12))
         });
 
-        Assert.Equal(2, merged.Count);
-        Assert.Equal((D(0, 9), D(0, 11)), merged[0]);
-        Assert.Equal((D(0, 11), D(0, 12)), merged[1]);
+        Assert.Single(merged);
+        Assert.Equal((D(0, 9), D(0, 12)), merged[0]);
     }
 }

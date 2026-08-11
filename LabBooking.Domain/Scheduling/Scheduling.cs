@@ -22,7 +22,7 @@ namespace LabBooking.Domain.Scheduling
             var merged = new List<(DateTime Start, DateTime End)>();
             foreach (var item in sorted)
             {
-                if (merged.Count > 0 && item.Start < merged[^1].End)
+                if (merged.Count > 0 && item.Start <= merged[^1].End)
                 {
                     if (item.End > merged[^1].End)
                         merged[^1] = (merged[^1].Start, item.End);
@@ -47,15 +47,26 @@ namespace LabBooking.Domain.Scheduling
             TimeSpan? openFrom = null,
             TimeSpan? openUntil = null)
         {
+            if (windowEnd <= windowStart)
+                return [];
+            if (openFrom.HasValue != openUntil.HasValue)
+                throw new ArgumentException("Both openFrom and openUntil must be provided together.");
+            if (openFrom.HasValue && openUntil!.Value <= openFrom.Value)
+                throw new ArgumentException("openUntil must be after openFrom.");
+
             var cursor = windowStart;
             var gaps = new List<(DateTime Start, DateTime End)>();
 
-            foreach (var busyInterval in Merge(busy))
+            foreach (var busyInterval in Merge(busy)
+                .Where(i => i.End > windowStart && i.Start < windowEnd))
             {
-                if (busyInterval.Start > cursor)
-                    gaps.Add((cursor, busyInterval.Start));
-                if (busyInterval.End > cursor)
-                    cursor = busyInterval.End;
+                var busyStart = busyInterval.Start < windowStart ? windowStart : busyInterval.Start;
+                var busyEnd = busyInterval.End > windowEnd ? windowEnd : busyInterval.End;
+
+                if (busyStart > cursor)
+                    gaps.Add((cursor, busyStart));
+                if (busyEnd > cursor)
+                    cursor = busyEnd;
             }
 
             if (cursor < windowEnd)
@@ -94,6 +105,9 @@ namespace LabBooking.Domain.Scheduling
             TimeSpan duration,
             int count = 3)
         {
+            if (duration <= TimeSpan.Zero || count <= 0)
+                return [];
+
             var candidates = new List<(DateTime Start, DateTime End, double DistanceMinutes)>();
             foreach (var gap in gaps)
             {

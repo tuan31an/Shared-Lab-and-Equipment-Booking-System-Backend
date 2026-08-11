@@ -16,9 +16,11 @@ namespace LabBooking.Application.Features.Resources.Commands
         public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Type is required.")]
-        public ResourceType Type { get; set; }
+        [EnumDataType(typeof(ResourceType), ErrorMessage = "Type is invalid.")]
+        public ResourceType? Type { get; set; }
 
         public string? Specifications { get; set; }
+        [MaxLength(500)]
         public string? ImageUrl { get; set; }
         public string? UsageRules { get; set; }
         public Guid? DepartmentId { get; set; }
@@ -42,18 +44,30 @@ namespace LabBooking.Application.Features.Resources.Commands
 
         public async Task<ResourceDto> Handle(CreateResourceCommand request, CancellationToken cancellationToken)
         {
+            if (!request.Type.HasValue || !Enum.IsDefined(request.Type.Value))
+                throw new ArgumentException("Type is invalid.");
+
+            var name = request.Name.Trim();
+            if (name.Length == 0)
+                throw new ArgumentException("Name is required.");
+
             if (request.DepartmentId.HasValue && await _departments.GetByIdAsync(request.DepartmentId.Value, cancellationToken) == null)
                 throw new NotFoundException($"Department {request.DepartmentId} not found.");
 
-            if (request.LabManagerId.HasValue && await _users.GetByIdAsync(request.LabManagerId.Value, cancellationToken) == null)
-                throw new NotFoundException($"User {request.LabManagerId} not found.");
+            if (request.LabManagerId.HasValue)
+            {
+                var manager = await _users.GetByIdAsync(request.LabManagerId.Value, cancellationToken)
+                    ?? throw new NotFoundException($"User {request.LabManagerId} not found.");
+                if (manager.Role != UserRole.LabManager)
+                    throw new ArgumentException("LabManagerId must reference a user with the LabManager role.");
+            }
 
             var resource = new Resource
             {
-                Name = request.Name.Trim(),
-                Type = request.Type,
+                Name = name,
+                Type = request.Type.Value,
                 Specifications = request.Specifications,
-                ImageUrl = request.ImageUrl,
+                ImageUrl = request.ImageUrl?.Trim(),
                 UsageRules = request.UsageRules,
                 DepartmentId = request.DepartmentId,
                 LabManagerId = request.LabManagerId,

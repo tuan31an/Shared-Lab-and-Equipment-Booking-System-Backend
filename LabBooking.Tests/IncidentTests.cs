@@ -9,6 +9,7 @@ namespace LabBooking.Tests;
 public class IncidentTests
 {
     private readonly FakeRepository<Resource> _resources = new();
+    private readonly FakeRepository<Booking> _bookings = new();
     private readonly FakeRepository<Incident> _incidents = new();
     private readonly FakeRepository<Notification> _notifications = new();
     private readonly FakeRepository<User> _users = new();
@@ -21,7 +22,7 @@ public class IncidentTests
         var managerId = Guid.NewGuid();
         var resource = new Resource { Name = "Lab A", LabManagerId = managerId };
         _resources.Items.Add(resource);
-        var handler = new CreateIncidentCommandHandler(_resources, _incidents, _notifications, _user, _uow);
+        var handler = new CreateIncidentCommandHandler(_resources, _bookings, _incidents, _notifications, _user, _uow);
 
         var dto = await handler.Handle(new CreateIncidentCommand
         {
@@ -44,7 +45,7 @@ public class IncidentTests
     {
         var resource = new Resource { Name = "Lab B", LabManagerId = null };
         _resources.Items.Add(resource);
-        var handler = new CreateIncidentCommandHandler(_resources, _incidents, _notifications, _user, _uow);
+        var handler = new CreateIncidentCommandHandler(_resources, _bookings, _incidents, _notifications, _user, _uow);
 
         await handler.Handle(new CreateIncidentCommand { ResourceId = resource.Id, Description = "Issue" }, CancellationToken.None);
 
@@ -55,7 +56,7 @@ public class IncidentTests
     [Fact]
     public async Task Create_Incident_Missing_Resource_Throws()
     {
-        var handler = new CreateIncidentCommandHandler(_resources, _incidents, _notifications, _user, _uow);
+        var handler = new CreateIncidentCommandHandler(_resources, _bookings, _incidents, _notifications, _user, _uow);
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new CreateIncidentCommand
         {

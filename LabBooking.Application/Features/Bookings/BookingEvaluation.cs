@@ -111,7 +111,12 @@ namespace LabBooking.Application.Features.Bookings
             DateTime end)
         {
             var windowStart = start.AddDays(-3).Date + TimeSpan.FromHours(7);
+            if (windowStart < DateTime.UtcNow)
+                windowStart = DateTime.UtcNow;
+
             var windowEnd = end.AddDays(3).Date + TimeSpan.FromHours(22);
+            if (windowEnd <= windowStart)
+                return [];
 
             var gaps = Scheduling.FreeGaps(windowStart, windowEnd, blockedRanges, TimeSpan.FromHours(7), TimeSpan.FromHours(22));
             return Scheduling.SuggestSlots(gaps, start, end - start)

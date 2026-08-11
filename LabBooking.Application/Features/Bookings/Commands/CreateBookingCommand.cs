@@ -61,14 +61,22 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
         public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
         {
+            var now = DateTime.UtcNow;
+
             if (request.EndTime <= request.StartTime)
                 throw new ArgumentException("EndTime must be after StartTime.");
 
-            if (request.StartTime <= DateTime.UtcNow)
+            if (request.StartTime <= now)
                 throw new ArgumentException("StartTime must be in the future.");
+
+            var purpose = request.Purpose.Trim();
+            if (purpose.Length == 0)
+                throw new ArgumentException("Purpose is required.");
 
             var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
+            if (resource.Status != ResourceStatus.Available)
+                throw new ConflictException($"Resource is currently {resource.Status}.");
 
             if (request.PriorityRuleId.HasValue && await _rules.GetByIdAsync(request.PriorityRuleId.Value, cancellationToken) == null)
                 throw new NotFoundException($"Priority rule {request.PriorityRuleId} not found.");
@@ -76,9 +84,14 @@ namespace LabBooking.Application.Features.Bookings.Commands
             var requesterId = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
 
-            var now = DateTime.UtcNow;
+            var requester = await _users.GetByIdAsync(requesterId, cancellationToken)
+                ?? throw new UnauthorizedException("Authentication required.");
+            if (requester.Status != UserStatus.Active)
+                throw new UnauthorizedException("This account is not allowed to create bookings.");
+
+            var today = now.Date;
             var activeRestriction = await _restrictions.FirstOrDefaultAsync(r =>
-                r.UserId == requesterId && r.StartDate <= now.Date && r.EndDate >= now.Date,
+                r.UserId == requesterId && r.StartDate <= today && today <= r.EndDate,
                 cancellationToken);
             if (activeRestriction != null)
                 throw new ArgumentException($"Booking is not allowed: account is restricted until {activeRestriction.EndDate:yyyy-MM-dd}. Reason: {activeRestriction.Reason}");
@@ -91,6 +104,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
             var conflicts = BookingEvaluation.Overlapping(dueBookings, request.StartTime, request.EndTime).ToList();
             var maintenanceOverlap = dueMaintenances
+                .Where(m => m.Status != MaintenanceStatus.Completed)
                 .Where(m => m.StartTime < request.EndTime && request.StartTime < m.EndTime)
                 .ToList();
 
@@ -118,7 +132,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
                 RuleId = request.PriorityRuleId,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                Purpose = request.Purpose.Trim(),
+                Purpose = purpose,
                 Status = BookingStatus.Pending
             };
 

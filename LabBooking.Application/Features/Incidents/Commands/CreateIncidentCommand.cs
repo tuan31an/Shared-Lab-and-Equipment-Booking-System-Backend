@@ -20,12 +20,14 @@ namespace LabBooking.Application.Features.Incidents.Commands
         [MaxLength(1000)]
         public string Description { get; set; } = string.Empty;
 
+        [MaxLength(500)]
         public string? ImageUrl { get; set; }
     }
 
     public class CreateIncidentCommandHandler : IRequestHandler<CreateIncidentCommand, IncidentDto>
     {
         private readonly IRepository<Resource> _resources;
+        private readonly IRepository<Booking> _bookings;
         private readonly IRepository<Incident> _incidents;
         private readonly IRepository<Notification> _notifications;
         private readonly ICurrentUser _currentUser;
@@ -33,12 +35,14 @@ namespace LabBooking.Application.Features.Incidents.Commands
 
         public CreateIncidentCommandHandler(
             IRepository<Resource> resources,
+            IRepository<Booking> bookings,
             IRepository<Incident> incidents,
             IRepository<Notification> notifications,
             ICurrentUser currentUser,
             IUnitOfWork uow)
         {
             _resources = resources;
+            _bookings = bookings;
             _incidents = incidents;
             _notifications = notifications;
             _currentUser = currentUser;
@@ -50,6 +54,18 @@ namespace LabBooking.Application.Features.Incidents.Commands
             var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
                 ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
 
+            var description = request.Description.Trim();
+            if (description.Length == 0)
+                throw new ArgumentException("Description is required.");
+
+            if (request.BookingId.HasValue)
+            {
+                var booking = await _bookings.GetByIdAsync(request.BookingId.Value, cancellationToken)
+                    ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
+                if (booking.ResourceId != request.ResourceId)
+                    throw new ArgumentException("BookingId does not belong to the specified resource.");
+            }
+
             var reportedBy = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
 
@@ -58,8 +74,8 @@ namespace LabBooking.Application.Features.Incidents.Commands
                 ResourceId = request.ResourceId,
                 BookingId = request.BookingId,
                 ReportedBy = reportedBy,
-                Description = request.Description.Trim(),
-                ImageUrl = request.ImageUrl,
+                Description = description,
+                ImageUrl = request.ImageUrl?.Trim(),
                 Status = IncidentStatus.Open,
                 ReportedAt = DateTime.UtcNow
             };

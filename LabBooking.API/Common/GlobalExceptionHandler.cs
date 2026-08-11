@@ -2,6 +2,7 @@ using LabBooking.API.Models;
 using LabBooking.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 
 namespace LabBooking.API.Common
@@ -25,7 +26,12 @@ namespace LabBooking.API.Common
             {
                 NotFoundException => (HttpStatusCode.NotFound, new[] { exception.Message }),
                 ConflictException => (HttpStatusCode.Conflict, new[] { exception.Message }),
-                UnauthorizedException => (HttpStatusCode.Unauthorized, new[] { exception.Message }),
+                UnauthorizedException => (
+                    httpContext.User.Identity?.IsAuthenticated == true
+                        ? HttpStatusCode.Forbidden
+                        : HttpStatusCode.Unauthorized,
+                    new[] { exception.Message }),
+                DbUpdateException => (HttpStatusCode.Conflict, new[] { "The request conflicts with existing database data." }),
                 // Domain ném ArgumentException khi dữ liệu đầu vào không hợp lệ.
                 ArgumentException => (HttpStatusCode.BadRequest, new[] { exception.Message }),
                 // Trigger DB chặn chồng lấn khung giờ (backstop tầng data).
@@ -37,6 +43,10 @@ namespace LabBooking.API.Common
             {
                 // Chỉ log chi tiết cho lỗi ngoài dự kiến; không rò rỉ thông tin ra client.
                 _logger.LogError(exception, "Unhandled exception while processing {Path}", httpContext.Request.Path);
+            }
+            else if (exception is DbUpdateException)
+            {
+                _logger.LogWarning(exception, "Database update conflict while processing {Path}", httpContext.Request.Path);
             }
 
             var response = ApiResponse.Fail(statusCode, messages);

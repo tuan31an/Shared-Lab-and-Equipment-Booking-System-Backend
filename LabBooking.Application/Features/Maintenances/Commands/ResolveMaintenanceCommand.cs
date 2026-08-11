@@ -17,6 +17,8 @@ namespace LabBooking.Application.Features.Maintenances.Commands
 
     public class ResolveMaintenanceCommandHandler : IRequestHandler<ResolveMaintenanceCommand, MaintenanceDto>
     {
+        private const decimal MaximumCost = 9_999_999_999.99m;
+
         private readonly IRepository<Resource> _resources;
         private readonly IRepository<Maintenance> _maintenances;
         private readonly ICurrentUser _currentUser;
@@ -36,6 +38,9 @@ namespace LabBooking.Application.Features.Maintenances.Commands
 
         public async Task<MaintenanceDto> Handle(ResolveMaintenanceCommand request, CancellationToken cancellationToken)
         {
+            if (request.Cost is < 0 or > MaximumCost)
+                throw new ArgumentException($"Cost must be between 0 and {MaximumCost}.");
+
             var maintenance = await _maintenances.GetByIdAsync(request.MaintenanceId, cancellationToken)
                 ?? throw new NotFoundException($"Maintenance {request.MaintenanceId} not found.");
 

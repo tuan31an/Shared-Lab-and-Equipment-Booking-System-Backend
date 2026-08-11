@@ -94,12 +94,15 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public async Task Generate_Defaults_Refresh_Expiry_To_Seven_Days_When_Unset()
+    public async Task Generate_Throws_When_Refresh_Expiry_Unset()
     {
-        var result = await new TokenService(TestConfig.Build(("Jwt:Key", Key))).GenerateAsync(User());
+        var service = new TokenService(TestConfig.Build(
+            ("Jwt:Key", Key),
+            ("Jwt:Issuer", "lab-booking"),
+            ("Jwt:Audience", "lab-booking-users"),
+            ("Jwt:ExpiryMinutes", "30")));
 
-        Assert.InRange(result.RefreshTokenEntity.ExpiresAtUtc, DateTime.UtcNow.AddDays(7).AddMinutes(-1), DateTime.UtcNow.AddDays(7));
-        Assert.Equal(0, result.ExpiresInSeconds);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GenerateAsync(User()));
     }
 
     [Fact]

@@ -43,8 +43,16 @@ namespace LabBooking.Application.Features.Resources.Queries
             if (request.To <= request.From)
                 throw new ArgumentException("To must be after From.");
 
-            if (await _resources.GetByIdAsync(request.ResourceId, cancellationToken) == null)
-                throw new NotFoundException($"Resource {request.ResourceId} not found.");
+            var resource = await _resources.GetByIdAsync(request.ResourceId, cancellationToken)
+                ?? throw new NotFoundException($"Resource {request.ResourceId} not found.");
+
+            if (resource.Status != ResourceStatus.Available)
+            {
+                return
+                [
+                    new AvailabilitySlotDto(request.From, request.To, resource.Status.ToString(), null)
+                ];
+            }
 
             var booked = await _bookings.ListAsync(b =>
                 b.ResourceId == request.ResourceId &&
@@ -58,8 +66,16 @@ namespace LabBooking.Application.Features.Resources.Queries
                 m.StartTime < request.To && request.From < m.EndTime,
                 cancellationToken);
 
-            var bookedSlots = booked.Select(b => new AvailabilitySlotDto(b.StartTime, b.EndTime, "Booked", b.Id));
-            var maintenanceSlots = maintenance.Select(m => new AvailabilitySlotDto(m.StartTime, m.EndTime, "UnderMaintenance", null));
+            var bookedSlots = booked.Select(b => new AvailabilitySlotDto(
+                b.StartTime < request.From ? request.From : b.StartTime,
+                b.EndTime > request.To ? request.To : b.EndTime,
+                "Booked",
+                b.Id));
+            var maintenanceSlots = maintenance.Select(m => new AvailabilitySlotDto(
+                m.StartTime < request.From ? request.From : m.StartTime,
+                m.EndTime > request.To ? request.To : m.EndTime,
+                "UnderMaintenance",
+                null));
 
             var busyRanges = booked.Select(b => (b.StartTime, b.EndTime))
                 .Concat(maintenance.Select(m => (m.StartTime, m.EndTime)))
