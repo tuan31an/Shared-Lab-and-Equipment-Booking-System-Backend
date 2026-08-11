@@ -22,6 +22,8 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<CheckInOut> _checkInOuts;
+        private readonly IRepository<Waitlist> _waitlists;
+        private readonly IRepository<Notification> _notifications;
         private readonly ICurrentUser _currentUser;
         private readonly IConfiguration _configuration;
         private readonly IUnitOfWork _uow;
@@ -32,6 +34,8 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<CheckInOut> checkInOuts,
+            IRepository<Waitlist> waitlists,
+            IRepository<Notification> notifications,
             ICurrentUser currentUser,
             IConfiguration configuration,
             IUnitOfWork uow)
@@ -41,6 +45,8 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _users = users;
             _rules = rules;
             _checkInOuts = checkInOuts;
+            _waitlists = waitlists;
+            _notifications = notifications;
             _currentUser = currentUser;
             _configuration = configuration;
             _uow = uow;
@@ -64,6 +70,10 @@ namespace LabBooking.Application.Features.Bookings.Commands
             booking.Status = BookingStatus.Cancelled;
             booking.MarkUpdated();
             _bookings.Update(booking);
+
+            await LabBooking.Application.Features.Waitlists.WaitlistEvaluation.NotifyAvailableAsync(
+                _waitlists, _notifications, booking.ResourceId, booking.StartTime, booking.EndTime, cancellationToken);
+
             await _uow.SaveChangesAsync(cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
