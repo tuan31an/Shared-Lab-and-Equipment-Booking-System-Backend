@@ -4,7 +4,7 @@
 
 ## 1. Tổng quan mô hình dữ liệu
 
-Mô hình gồm 12 thực thể chính, chia thành 4 nhóm:
+Mô hình gồm 12 thực thể nghiệp vụ chính, chia thành 4 nhóm:
 
 1. **Nhóm người dùng & tổ chức**: Department, User
 2. **Nhóm danh mục**: Resource, PriorityRule
@@ -206,6 +206,8 @@ Khi tồn tại Restriction đang hiệu lực (ngày hiện tại nằm trong [
 
 ## 5. Hiện thực trong mã nguồn (LabBooking)
 
-- 12 thực thể nằm ở `LabBooking.Domain/Entities`, enum ở `LabBooking.Domain/Enums/Enums.cs`.
-- Ánh xạ bảng + index trong `LabBooking.Infrastructure.Sqlserver/Configurations/EntityConfigurations.cs`.
-- Core logic chống chồng lấn: `LabBooking.Domain/Services/BookingService.cs` kiểm tra Approved-booking và Maintenance overlap trước khi tạo/duyệt; phần ràng buộc ở tầng DB (trigger/exclusion) chưa hiện thực — cần bổ sung migration.
+- 13 thực thể nằm ở `LabBooking.Domain/Entities` (12 thực thể nghiệp vụ trên + `RefreshToken` phục vụ xác thực), enum nằm ở `LabBooking.Domain/Enums/*.cs` (mỗi enum một file).
+- Ánh xạ bảng, index, check constraint, quan hệ và query filter trong `LabBooking.Infrastructure.Sqlserver/Configurations/*.cs` (mỗi entity một file cấu hình).
+- Core logic chống chồng lấn: `LabBooking.Domain/Scheduling/Scheduling.cs` là logic thuần (overlap, gộp khoảng, tính khung trống, đề xuất slot); `LabBooking.Application/Features/Bookings/BookingEvaluation.cs` phối hợp kiểm tra Approved/Pending-booking và Maintenance overlap trước khi tạo/duyệt booking, cũng như trong `CreateMaintenanceCommand`.
+- Các ràng buộc cứng ở tầng DB đã có trong migration: check constraint `EndTime > StartTime` (Booking, Maintenance), `DesiredEnd > DesiredStart` (Waitlist), `EndDate >= StartDate` (Restriction), unique index `(BookingId, Type)` (Violation), unique `(Email)` (User), unique `(BookingId)` (CheckInOut).
+- Phần ràng buộc chống chồng lấn thời gian ở tầng DB (trigger/exclusion constraint để ngăn trùng khung giờ Approved-booking trên cùng resource) **chưa hiện thực** — hiện chỉ kiểm tra ở tầng ứng dụng; bổ sung migration nếu cần đảm bảo tuyệt đối ở đa instance.

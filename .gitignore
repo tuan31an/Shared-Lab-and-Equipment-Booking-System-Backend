@@ -548,3 +548,5 @@ appsettings.Development.json
 # File log tạo ra khi test run ad-hoc
 *.out.txt
 *.err.txt
+
+.codegraph/
