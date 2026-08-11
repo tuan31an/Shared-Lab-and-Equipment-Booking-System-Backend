@@ -1,6 +1,7 @@
 using LabBooking.API.Models;
 using LabBooking.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Data.SqlClient;
 using System.Net;
 
 namespace LabBooking.API.Common
@@ -27,6 +28,8 @@ namespace LabBooking.API.Common
                 UnauthorizedException => (HttpStatusCode.Unauthorized, new[] { exception.Message }),
                 // Domain ném ArgumentException khi dữ liệu đầu vào không hợp lệ.
                 ArgumentException => (HttpStatusCode.BadRequest, new[] { exception.Message }),
+                // Trigger DB chặn chồng lấn khung giờ (backstop tầng data).
+                SqlException { Number: 50001 or 50002 or 51001 or 51002 } sqlEx => (HttpStatusCode.Conflict, new[] { sqlEx.Message }),
                 _ => (HttpStatusCode.InternalServerError, new[] { "An unexpected error occurred." })
             };
 
