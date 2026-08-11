@@ -42,6 +42,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 builder.Services.AddHostedService<LabBooking.API.Common.RefreshTokenCleanupService>();
+builder.Services.AddHostedService<LabBooking.API.Common.BookingReminderService>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(options =>
