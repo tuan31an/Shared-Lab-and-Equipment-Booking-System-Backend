@@ -35,6 +35,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PriorityRule> _rules;
         private readonly IRepository<Maintenance> _maintenances;
+        private readonly IRepository<Restriction> _restrictions;
         private readonly ICurrentUser _currentUser;
         private readonly IUnitOfWork _uow;
 
@@ -44,6 +45,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             IRepository<User> users,
             IRepository<PriorityRule> rules,
             IRepository<Maintenance> maintenances,
+            IRepository<Restriction> restrictions,
             ICurrentUser currentUser,
             IUnitOfWork uow)
         {
@@ -52,6 +54,7 @@ namespace LabBooking.Application.Features.Bookings.Commands
             _users = users;
             _rules = rules;
             _maintenances = maintenances;
+            _restrictions = restrictions;
             _currentUser = currentUser;
             _uow = uow;
         }
@@ -72,6 +75,13 @@ namespace LabBooking.Application.Features.Bookings.Commands
 
             var requesterId = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
+
+            var now = DateTime.UtcNow;
+            var activeRestriction = await _restrictions.FirstOrDefaultAsync(r =>
+                r.UserId == requesterId && r.StartDate <= now.Date && r.EndDate >= now.Date,
+                cancellationToken);
+            if (activeRestriction != null)
+                throw new ArgumentException($"Booking is not allowed: account is restricted until {activeRestriction.EndDate:yyyy-MM-dd}. Reason: {activeRestriction.Reason}");
 
             var dueBookings = await _bookings.ListAsync(b =>
                 b.ResourceId == request.ResourceId &&

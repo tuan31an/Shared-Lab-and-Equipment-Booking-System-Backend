@@ -12,6 +12,7 @@ public class ViolationConfiguration : IEntityTypeConfiguration<Violation>
         builder.Property(v => v.Note).HasMaxLength(500);
 
         builder.HasIndex(v => v.UserId);
+        builder.HasIndex(v => new { v.BookingId, v.Type }).IsUnique();
 
         builder.HasQueryFilter(v => !v.User.IsDeleted);
 
