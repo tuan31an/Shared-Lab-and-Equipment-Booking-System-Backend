@@ -4,6 +4,8 @@ using LabBooking.Application.Contracts;
 using LabBooking.Application.Features.Auth.Commands;
 using LabBooking.Application.Features.Bookings.Commands;
 using LabBooking.Application.Features.Maintenances.Commands;
+using LabBooking.Application.Features.Users.Commands;
+using LabBooking.Application.Features.Users.Queries;
 using LabBooking.Application.Features.Waitlists.Commands;
 using LabBooking.Application.Features.Waitlists.Queries;
 using MediatR;
@@ -149,5 +151,81 @@ public class ControllerTests
         Assert.IsType<OkObjectResult>(result);
         var sent = Assert.IsType<ResolveMaintenanceCommand>(sender.Sent.Single());
         Assert.Equal(id, sent.MaintenanceId);
+    }
+
+    [Fact]
+    public async Task Users_List_Returns_Ok()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        sender.Register<GetUsersQuery>(new PaginationResponse<UserDto>([], 0, 1, 20));
+
+        var result = await controller.List(new GetUsersQuery());
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<GetUsersQuery>(sender.Sent.Single());
+    }
+
+    [Fact]
+    public async Task Users_Create_Returns_Created()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        var dto = new UserDto(Guid.NewGuid(), "Alice", "a@b.com", "Requester", "Active", DateTime.UtcNow);
+        sender.Register<CreateUserCommand>(dto);
+
+        var result = await controller.Create(new CreateUserCommand());
+
+        Assert.IsType<CreatedResult>(result);
+        Assert.IsType<CreateUserCommand>(sender.Sent.Single());
+    }
+
+    [Fact]
+    public async Task Users_Update_Fills_Id_From_Route()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        var dto = new UserDto(Guid.NewGuid(), "Alice", "a@b.com", "Requester", "Active", DateTime.UtcNow);
+        sender.Register<UpdateUserCommand>(dto);
+        var id = Guid.NewGuid();
+
+        await controller.Update(id, new UpdateUserCommand());
+
+        var sent = Assert.IsType<UpdateUserCommand>(sender.Sent.Single());
+        Assert.Equal(id, sent.Id);
+    }
+
+    [Fact]
+    public async Task Users_Delete_Returns_NoContent()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        sender.Register<DeleteUserCommand>(Unit.Value);
+
+        var result = await controller.Delete(Guid.NewGuid());
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Single(sender.Sent);
+    }
+
+    [Fact]
+    public async Task Users_ChangePassword_Returns_NoContent()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        sender.Register<ChangePasswordCommand>(Unit.Value);
+
+        var result = await controller.ChangePassword(new ChangePasswordCommand());
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Single(sender.Sent);
+    }
+
+    [Fact]
+    public async Task Users_ResetPassword_Fills_Id_From_Route()
+    {
+        var (controller, sender) = Create(s => new UsersController(s));
+        sender.Register<ResetPasswordCommand>(Unit.Value);
+        var id = Guid.NewGuid();
+
+        await controller.ResetPassword(id, new ResetPasswordCommand());
+
+        var sent = Assert.IsType<ResetPasswordCommand>(sender.Sent.Single());
+        Assert.Equal(id, sent.Id);
     }
 }
