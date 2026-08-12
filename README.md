@@ -130,12 +130,12 @@ Tất cả cấu hình đọc từ `appsettings.json`. Đọc thêm các nút:
 `DataSeeder` chèn khi DB rỗng:
 
 - **3 Khoa**: Computer Science, Electronics, Mechanical
-- **8 người dùng** (2 Admin, 3 Lab Manager, 3 Requester) — các tài khoản seed **có `PasswordHash` rỗng**, chỉ dùng/xem trực tiếp qua DB; đăng nhập thực tế dùng tài khoản đăng ký mới qua `POST /api/auth/register`.
+- **8 người dùng** (2 Admin, 3 Lab Manager, 3 Requester) — dùng chung mật khẩu phát triển **`ChangeMe123!`**, đăng nhập được đầy đủ vai trò.
 - **3 quy tắc ưu tiên**: Research Project (1), Course (2), Self-study (3).
 - **3 tài nguyên**: CS Lab A, Oscilloscope, Mech Workshop.
 - Booking (Approved/Pending), CheckInOut, Incident, Maintenance, Violation, Restriction, Waitlist, Notification mẫu.
 
-> Lưu ý: tài khoản seed không dùng để đăng nhập được. Muốn có tài khoản Admin/Lab Manager thật, đăng ký mới rồi chỉnh `Role` trong DB (hoặc đồng ý để trống hash — chưa có nút đổi vai trò qua API trong phạm vi hiện tại).
+> Lưu ý: mật khẩu seed chỉ dành cho phát triển; thay đổi trước khi triển khai production. Quản lý vai trò qua API: `POST/PUT /api/users` (chỉ Admin).
 
 ## Ảnh xạ user story → code
 
@@ -157,6 +157,7 @@ Tất cả cấu hình đọc từ `appsettings.json`. Đọc thêm các nút:
 | US-14 Báo cáo bảo trì & chi phí | `GetMaintenanceReportQuery` |
 | US-15 Xác thực JWT | `Auth` (register/login/refresh/logout) |
 | US-16 Nhắc lịch | `BookingReminderService` |
+| Quản lý người dùng (Admin) | `Users` (GetUsers, CreateUser, UpdateUser, DeleteUser, ChangePassword, ResetPassword) |
 
 ## Xác thực & phân quyền
 
@@ -173,6 +174,7 @@ Tất cả cấu hình đọc từ `appsettings.json`. Đọc thêm các nút:
 | Đặt/huỷ lịch, check-in/out (lịch của mình) | ✔ | ✔ (nhân danh quản lý) | ✔ | |
 | Duyệt/từ chối lịch phòng mình phụ trách | ✔ (mọi nơi) | ✔ (phòng của mình) | | |
 | CRUD tài nguyên, quy tắc ưu tiên | ✔ | | | |
+| Quản lý người dùng (CRUD, reset mật khẩu) | ✔ | | | |
 | Lập lịch/hoàn tất bảo trì | ✔ | ✔ (phòng của mình) | | |
 | Xem dashboard | ✔ | ✔ (phạm vi phòng mình) | | |
 | Báo cáo bảo trì | ✔ | | | |
@@ -209,7 +211,7 @@ Coverage chính:
 - `WaitlistTests` — join/leave, notify theo thứ tự, hết hạn
 - `ViolationSweeperTests` — no-show, auto-restriction, đồng bộ trạng thái người dùng
 - `SchedulingTests` — overlap, merge, free gaps, gợi ý slot theo giờ hoạt động
-- `IncidentTests`, `TokenServiceTests`, `HttpResponseTests`, `ControllerTests`, `BaseEntityTests`
+- `IncidentTests`, `TokenServiceTests`, `HttpResponseTests`, `ControllerTests`, `BaseEntityTests`, `UserTests`
 
 ## Tài liệu
 
@@ -222,4 +224,4 @@ Coverage chính:
 
 ## Ghi chú triển khai
 
-Đổi khoá JWT (`Jwt:Key`) trước khi triển khai production. Các ràng buộc chống chồng lấn thời gian (booking ^ maintenance) hiện kiểm tra ở tầng ứng dụng; nếu cần đảm bảo tuyệt đối ở tầng DB (đa instance, outbox), bổ sung constraint/trigger tương ứng trong migration.
+Đổi khoá JWT (`Jwt:Key`) trước khi triển khai production. Chống chồng lấn thời gian (booking ^ maintenance) được đảm bảo ở **cả hai lớp**: kiểm tra ở tầng ứng dụng (`BookingEvaluation`) và trigger ở tầng DB (`TR_Bookings_BlockOverlap`, `TR_Maintenances_BlockOverlap`) — `SqlException` 50001/50002/51001/51002 ánh xạ thành `409 Conflict`.

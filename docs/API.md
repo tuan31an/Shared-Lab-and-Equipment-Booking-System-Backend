@@ -344,8 +344,44 @@ Tiêu chí: công suất tối đa 15h/ngày (07:00–22:00); `usagePercent = ac
 
 Requester gọi → `401`.
 
+## 13. Quản lý người dùng — `/api/users`
+
+| Method | Endpoint | Vai trò | Mô tả |
+|--------|----------|---------|-------|
+| GET | `/` | Admin | Danh sách người dùng (phân trang, lọc) |
+| GET | `/{id}` | Admin | Chi tiết người dùng |
+| POST | `/` | Admin | Tạo tài khoản (bất kỳ vai trò nào) |
+| PUT | `/{id}` | Admin | Cập nhật thông tin người dùng |
+| DELETE | `/{id}` | Admin | Xoá mềm (soft-delete) |
+| POST | `/change-password` | Xác thực | Đổi mật khẩu của chính mình |
+| POST | `/{id}/reset-password` | Admin | Đặt lại mật khẩu cho người dùng |
+
+`UserDto`: `{ id, fullName, email, role, status, createdAt }`.
+
+**GET `/` query:** `page`, `pageSize`, `role`, `status`, `departmentId`, `keyword` (tìm theo tên/email).
+→ `result: PaginationResponse<UserDto>` sắp theo `createdAt` giảm dần.
+
+**GET `/{id}`:** → `200` trả `UserDto`; không tồn tại → `404`.
+
+**POST `/` body:**
+```json
+{ "fullName": "Nguyen Van A", "email": "a@example.com", "password": "secret123", "role": "Requester", "departmentId": null }
+```
+→ `201` trả `UserDto` (`status: Active`). Email trùng → `409`; department không tồn tại → `404`; password < 6 ký tự → `400`.
+
+**PUT `/{id}` body:** `{ "fullName": "...", "role": "LabManager", "status": "Active", "departmentId": null }`.
+→ `200` trả `UserDto`. Không thể đổi `role`/`status` của chính mình → `409`.
+
+**DELETE `/{id}`:** → `204`, set `IsDeleted = true`. Không xoá được tài khoản của mình → `409`; người dùng còn booking `Pending`/`Approved` chưa kết thúc → `409`.
+
+**POST `/change-password` body:** `{ "currentPassword": "...", "newPassword": "..." }` (`newPassword` ≥ 6 ký tự) → `204`. Sai mật khẩu hiện tại → `401`.
+
+**POST `/{id}/reset-password` body:** `{ "newPassword": "..." }` (`newPassword` ≥ 6 ký tự) → `204`. Người dùng không tồn tại → `404`.
+
+---
+
 ## Ghi chú
 
 - ID dạng GUID trên mọi đường dẫn `{id:guid}`/`{bookingId:guid}`/...
 - Mọi thời gian lưu theo UTC (`DateTime.UtcNow`); client tự quy đổi múi giờ hiển thị.
-- Tài khoản seed trong `DataSeeder` có `PasswordHash` rỗng — không đăng nhập được; đăng ký tài khoản mới để test luồng auth và chỉnh role trong DB nếu cần.
+- Tài khoản seed trong `DataSeeder` (`admin@example.com`, `alice.manager@example.com`, `bob.requester@example.com`, ...) có chung mật khẩu **`ChangeMe123!`**, dùng cho mục đích phát triển — đổi trước khi chạy production.

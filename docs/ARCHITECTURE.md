@@ -63,7 +63,7 @@ Hiện thực các interface của Domain.
 - `Configurations/*` — Fluent API: table, index, check constraint, quan hệ, query filter, `DeleteBehavior.Restrict` để tránh xoá lan toả.
 - `Auth/TokenService` — tạo JWT (access) + refresh token.
 - `Persistence/DataSeeder` — migrate + seed dữ liệu mẫu khi khởi động.
-- Migrations EF Core (3 bản).
+- Migrations EF Core (4 bản).
 
 ### 2.4. API
 Presentation layer.
@@ -142,7 +142,7 @@ BookingEvaluation (Application) phối hợp với Scheduling (Domain):
 - **Booked range:** booking ở trạng thái `Pending` hoặc `Approved` (đang "giữ khung"); maintenance trạng thái ≠ `Completed`.
 - `BlockedRanges(start, end, bookings, maintenances)` — lấy toàn bộ khoảng bận trong cửa sổ `[start-3 ngày, end+3 ngày]`.
 - `SuggestAlternatives(...)` — dùng `Scheduling.FreeGaps` + `SuggestSlots` trong khoảng ±3 ngày của khung yêu cầu, giới hạn 07:00–22:00, trả về **tối đa 3 slot** cùng độ dài, sắp theo khoảng cách tuyệt đối tới khung yêu cầu.
-- Điểm mở rộng: nếu cần ràng buộc tuyệt đối ở tầng DB (nhiều instance ghi đồng thời), bổ sung trigger/constraint chống chồng lấn trong migration.
+- Ràng buộc tầng DB (backstop cho đa instance): trigger `TR_Bookings_BlockOverlap` (chặn booking^booking, booking^maintenance) và `TR_Maintenances_BlockOverlap` (chặn maintenance^maintenance, maintenance^booking) trong migration `20260811021109_AddOverlapTriggers`; `SqlException` 50001/50002/51001/51002 → `409 Conflict`.
 
 ## 7. Xác thực & refresh token
 
