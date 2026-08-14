@@ -58,8 +58,10 @@ namespace LabBooking.Application.Features.Dashboard.Queries
                     (!request.DepartmentId.HasValue || r.DepartmentId == request.DepartmentId))
                 .ToList();
 
-            var allBookings = await _bookings.ListAsync(null, cancellationToken);
-            var checkIns = (await _checkInOuts.ListAsync(null, cancellationToken)).ToDictionary(c => c.BookingId);
+            var allBookings = await _bookings.ListAsync(b => b.EndTime >= from && b.StartTime <= to, cancellationToken);
+            var windowBookingIds = allBookings.Select(b => b.Id).ToHashSet();
+            var checkIns = (await _checkInOuts.ListAsync(c => windowBookingIds.Contains(c.BookingId), cancellationToken))
+                .ToDictionary(c => c.BookingId);
             var departments = (await _departments.GetAllAsync(cancellationToken)).ToDictionary(d => d.Id);
 
             var capacityDays = Math.Max(1, (to.Date - from.Date).Days);

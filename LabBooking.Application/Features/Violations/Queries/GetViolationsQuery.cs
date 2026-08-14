@@ -38,13 +38,33 @@ namespace LabBooking.Application.Features.Violations.Queries
 
         public async Task<IReadOnlyList<ViolationDto>> Handle(GetViolationsQuery request, CancellationToken cancellationToken)
         {
-            var all = await _violations.ListAsync(null, cancellationToken);
+            var role = _currentUser.Role;
+            var userId = _currentUser.UserId;
+            var ownOnly = role != "Admin" && role != "LabManager";
 
-            var scoped = await ScopeToRoleAsync(all, cancellationToken);
-            var filtered = scoped
-                .Where(v =>
-                    (!request.UserId.HasValue || v.UserId == request.UserId) &&
-                    (!request.Type.HasValue || v.Type == request.Type))
+            // LabManager: lọc vi phạm theo booking trên resource phụ trách (trong RAM, tập đã thu hẹp).
+            HashSet<Guid>? managedBookingIds = null;
+            if (role == "LabManager" && userId.HasValue)
+            {
+                var managedResourceIds = (await _resources.GetAllAsync(cancellationToken))
+                    .Where(r => r.LabManagerId == userId)
+                    .Select(r => r.Id)
+                    .ToHashSet();
+                managedBookingIds = (await _bookings.GetAllAsync(cancellationToken))
+                    .Where(b => managedResourceIds.Contains(b.ResourceId))
+                    .Select(b => b.Id)
+                    .ToHashSet();
+            }
+
+            var list = await _violations.ListAsync(v =>
+                (!request.UserId.HasValue || v.UserId == request.UserId) &&
+                (!request.Type.HasValue || v.Type == request.Type) &&
+                (!ownOnly || v.UserId == userId),
+                cancellationToken);
+
+            var filtered = (role == "LabManager"
+                ? list.Where(v => v.BookingId.HasValue && managedBookingIds!.Contains(v.BookingId.Value))
+                : list)
                 .OrderByDescending(v => v.RecordedAt)
                 .ToList();
 
@@ -62,30 +82,6 @@ namespace LabBooking.Application.Features.Violations.Queries
                     v.RecordedAt,
                     v.Note);
             }).ToList();
-        }
-
-        private async Task<IReadOnlyList<Violation>> ScopeToRoleAsync(
-            IReadOnlyList<Violation> all,
-            CancellationToken cancellationToken)
-        {
-            var role = _currentUser.Role;
-            if (role == "Admin")
-                return all;
-
-            if (role == "LabManager")
-            {
-                var managedIds = (await _resources.GetAllAsync(cancellationToken))
-                    .Where(r => r.LabManagerId == _currentUser.UserId)
-                    .Select(r => r.Id)
-                    .ToHashSet();
-                var managedBookings = (await _bookings.GetAllAsync(cancellationToken))
-                    .Where(b => managedIds.Contains(b.ResourceId))
-                    .Select(b => b.Id)
-                    .ToHashSet();
-                return all.Where(v => v.BookingId.HasValue && managedBookings.Contains(v.BookingId.Value)).ToList();
-            }
-
-            return all.Where(v => v.UserId == _currentUser.UserId).ToList();
         }
     }
 }

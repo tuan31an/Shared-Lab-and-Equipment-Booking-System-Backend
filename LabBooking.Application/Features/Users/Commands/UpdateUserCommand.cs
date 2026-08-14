@@ -58,6 +58,16 @@ namespace LabBooking.Application.Features.Users.Commands
                 (request.Role.Value != user.Role || request.Status.Value != user.Status))
                 throw new ConflictException("You cannot change your own role or status.");
 
+            // Không được phế truất/huỷ kích hoạt admin cuối cùng còn hoạt động.
+            if (user.Role == UserRole.Admin &&
+                (request.Role.Value != UserRole.Admin || request.Status.Value != UserStatus.Active))
+            {
+                var activeAdmins = await _users.ListAsync(
+                    u => u.Role == UserRole.Admin && u.Status == UserStatus.Active, cancellationToken);
+                if (activeAdmins.Count <= 1)
+                    throw new ConflictException("Cannot demote or disable the last active Admin.");
+            }
+
             var fullName = request.FullName.Trim();
             if (fullName.Length == 0)
                 throw new ArgumentException("FullName is required.");

@@ -42,11 +42,10 @@ namespace LabBooking.Application.Features.Dashboard.Queries
             if (to <= from)
                 throw new ArgumentException("To must be after From.");
 
-            var all = await _maintenances.ListAsync(null, cancellationToken);
-            var items = all
-                .Where(m =>
-                    m.StartTime <= to && m.EndTime >= from &&
-                    (!request.ResourceId.HasValue || m.ResourceId == request.ResourceId))
+            var items = (await _maintenances.ListAsync(m =>
+                m.StartTime <= to && m.EndTime >= from &&
+                (!request.ResourceId.HasValue || m.ResourceId == request.ResourceId),
+                cancellationToken))
                 .OrderBy(m => m.StartTime)
                 .ToList();
 

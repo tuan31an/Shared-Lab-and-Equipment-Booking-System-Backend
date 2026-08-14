@@ -58,16 +58,21 @@ namespace LabBooking.Application.Features.Incidents.Commands
             if (description.Length == 0)
                 throw new ArgumentException("Description is required.");
 
+            var reportedBy = _currentUser.UserId
+                ?? throw new UnauthorizedException("Authentication required.");
+
             if (request.BookingId.HasValue)
             {
                 var booking = await _bookings.GetByIdAsync(request.BookingId.Value, cancellationToken)
                     ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
                 if (booking.ResourceId != request.ResourceId)
                     throw new ArgumentException("BookingId does not belong to the specified resource.");
+                // Chỉ người đặt lịch, Lab Manager của resource, hoặc Admin được gắn incident vào booking.
+                if (booking.RequesterId != reportedBy &&
+                    resource.LabManagerId != reportedBy &&
+                    _currentUser.Role != "Admin")
+                    throw new UnauthorizedException("You can only report incidents on your own bookings or resources you manage.");
             }
-
-            var reportedBy = _currentUser.UserId
-                ?? throw new UnauthorizedException("Authentication required.");
 
             var incident = new Incident
             {

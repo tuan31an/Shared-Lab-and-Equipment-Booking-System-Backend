@@ -69,6 +69,13 @@ namespace LabBooking.Application.Features.Bookings.Commands
             if (request.StartTime <= now)
                 throw new ArgumentException("StartTime must be in the future.");
 
+            // Khung giờ hoạt động 07:00–22:00 (khớp với availability/suggestions),
+            // không cho đặt qua ngày — tránh đặt lúc UI không hiển thị khung trống.
+            if (request.StartTime.Date != request.EndTime.Date ||
+                request.StartTime.TimeOfDay < TimeSpan.FromHours(7) ||
+                request.EndTime.TimeOfDay > TimeSpan.FromHours(22))
+                throw new ArgumentException("Bookings must be within operating hours 07:00–22:00 and cannot span multiple days.");
+
             var purpose = request.Purpose.Trim();
             if (purpose.Length == 0)
                 throw new ArgumentException("Purpose is required.");

@@ -30,10 +30,10 @@ namespace LabBooking.Application.Features.Notifications.Queries
             var userId = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
 
-            var all = await _notifications.ListAsync(n => n.UserId == userId, cancellationToken);
+            var all = await _notifications.ListAsync(n =>
+                n.UserId == userId && (!request.UnreadOnly || !n.IsRead), cancellationToken);
 
             return all
-                .Where(n => !request.UnreadOnly || !n.IsRead)
                 .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new NotificationDto(n.Id, n.Type.ToString(), n.Content, n.IsRead, n.CreatedAt))
                 .ToList();

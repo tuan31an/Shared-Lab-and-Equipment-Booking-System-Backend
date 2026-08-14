@@ -35,6 +35,15 @@ namespace LabBooking.Application.Features.Users.Commands
             if (user.Id == _currentUser.UserId)
                 throw new ConflictException("You cannot delete your own account.");
 
+            // Không được xoá admin cuối cùng còn hoạt động.
+            if (user.Role == UserRole.Admin)
+            {
+                var activeAdmins = await _users.ListAsync(
+                    u => u.Role == UserRole.Admin && u.Status == UserStatus.Active, cancellationToken);
+                if (activeAdmins.Count <= 1)
+                    throw new ConflictException("Cannot delete the last active Admin.");
+            }
+
             var now = DateTime.UtcNow;
             var activeBooking = await _bookings.FirstOrDefaultAsync(b =>
                 b.RequesterId == request.Id &&

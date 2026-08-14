@@ -38,6 +38,9 @@ namespace LabBooking.Application.Features.Auth.Commands
 
             refreshToken.RevokedAtUtc = DateTime.UtcNow;
             _refreshTokens.Update(refreshToken);
+            // Lưu ngay việc thu hồi trước khi kiểm tra user — nếu user bị khoá,
+            // token vẫn bị đốt thay vì còn hiệu lực tới khi hết hạn.
+            await _uow.SaveChangesAsync(cancellationToken);
 
             var user = await _users.GetByIdAsync(refreshToken.UserId, cancellationToken);
             if (user == null || user.Status == UserStatus.Disabled)

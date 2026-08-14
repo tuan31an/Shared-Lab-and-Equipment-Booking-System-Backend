@@ -31,10 +31,15 @@ namespace LabBooking.API.Common
                         ? HttpStatusCode.Forbidden
                         : HttpStatusCode.Unauthorized,
                     new[] { exception.Message }),
-                DbUpdateException => (HttpStatusCode.Conflict, new[] { "The request conflicts with existing database data." }),
+                // Trigger DB chặn chồng lấn: EF bọc SqlException trong DbUpdateException khi SaveChanges.
+                DbUpdateException { InnerException: SqlException { Number: 50001 or 50002 or 51001 or 51002 } sqlEx } => (HttpStatusCode.Conflict, new[] { sqlEx.Message }),
+                // Unique/index violation → xung đột dữ liệu thật (2601 = unique index, 2627 = unique constraint).
+                DbUpdateException { InnerException: SqlException { Number: 2601 or 2627 } } => (HttpStatusCode.Conflict, new[] { "The request conflicts with existing database data." }),
+                // DbUpdateException khác (truncation, null-violation, ...) không phải xung đột — đừng ngụy trang.
+                DbUpdateException => (HttpStatusCode.InternalServerError, new[] { "An unexpected error occurred." }),
                 // Domain ném ArgumentException khi dữ liệu đầu vào không hợp lệ.
                 ArgumentException => (HttpStatusCode.BadRequest, new[] { exception.Message }),
-                // Trigger DB chặn chồng lấn khung giờ (backstop tầng data).
+                // Trigger DB trong truy vấn trực tiếp (không qua SaveChanges).
                 SqlException { Number: 50001 or 50002 or 51001 or 51002 } sqlEx => (HttpStatusCode.Conflict, new[] { sqlEx.Message }),
                 _ => (HttpStatusCode.InternalServerError, new[] { "An unexpected error occurred." })
             };
