@@ -9,7 +9,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
     public void Configure(EntityTypeBuilder<Booking> builder)
     {
         builder.ToTable("Bookings", t =>
-            t.HasCheckConstraint("CK_Bookings_EndTime_After_StartTime", "[EndTime] > [StartTime]"));
+        {
+            t.HasCheckConstraint("CK_Bookings_EndTime_After_StartTime", "[EndTime] > [StartTime]");
+            t.UseSqlOutputClause(false);
+        });
         builder.Property(b => b.Purpose).HasMaxLength(500).IsRequired();
 
         builder.HasIndex(b => new { b.ResourceId, b.StartTime, b.EndTime });
