@@ -22,6 +22,8 @@ namespace LabBooking.API
                 // Mọi DateTime từ body chuẩn hoá về UTC trước khi vào handler,
                 // tránh so sánh nhầm giữa giờ client (naive/local) với DateTime.UtcNow.
                 options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+                // Enum nhận dạng tên string ("Admin", "Active") thay vì số 0/1/2 — khớp FE gửi.
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
             services.AddHttpContextAccessor();
