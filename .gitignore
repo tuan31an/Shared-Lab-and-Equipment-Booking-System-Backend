@@ -536,3 +536,17 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/dotnetcore,visualstudio,aspnetcore
+
+### Project-specific ###
+# Bí mật / cấu hình local không nên commit
+appsettings.Local.json
+appsettings.Development.json
+*.*csproj.user
+*.DS_Store
+.DS_Store
+
+# File log tạo ra khi test run ad-hoc
+*.out.txt
+*.err.txt
+
+.codegraph/

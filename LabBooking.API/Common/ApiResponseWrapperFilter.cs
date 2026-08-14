@@ -25,6 +25,10 @@ namespace LabBooking.API.Common
                     objectResult.Value = Build(objectResult.Value, objectResult.StatusCode ?? StatusCodes.Status200OK);
                     break;
 
+                // 204 NoContent không được phép mang body (chuẩn HTTP) — giữ nguyên.
+                case StatusCodeResult { StatusCode: StatusCodes.Status204NoContent }:
+                    break;
+
                 // Không có body (NoContent, StatusCode(...), NotFound() không kèm dữ liệu).
                 case StatusCodeResult statusCodeResult:
                     context.Result = new ObjectResult(Build(null, statusCodeResult.StatusCode))
