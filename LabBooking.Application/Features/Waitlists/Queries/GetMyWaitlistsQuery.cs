@@ -1,7 +1,9 @@
 using LabBooking.Application.Common;
+using LabBooking.Application.Common.Exceptions;
 using LabBooking.Application.Contracts;
 using LabBooking.Application.Features.Waitlists;
 using LabBooking.Domain.Entities;
+using LabBooking.Domain.Enums;
 using LabBooking.Domain.Interfaces;
 using MediatR;
 
@@ -30,19 +32,18 @@ namespace LabBooking.Application.Features.Waitlists.Queries
 
         public async Task<IReadOnlyList<WaitlistDto>> Handle(GetMyWaitlistsQuery request, CancellationToken cancellationToken)
         {
-            var all = await _waitlists.ListAsync(null, cancellationToken);
+            var userId = _currentUser.UserId
+                ?? throw new UnauthorizedException("Authentication required.");
+            var isAdmin = _currentUser.Role == "Admin";
 
-            var scoped = _currentUser.Role == "Admin"
-                ? all
-                : all.Where(w => w.RequesterId == _currentUser.UserId).ToList();
-
-            var active = scoped.Where(w => w.Status == Domain.Enums.WaitlistStatus.Waiting).ToList();
-            if (request.ActiveOnly)
-                scoped = active;
+            var list = await _waitlists.ListAsync(w =>
+                (isAdmin || w.RequesterId == userId) &&
+                (!request.ActiveOnly || w.Status == WaitlistStatus.Waiting),
+                cancellationToken);
 
             var resources = (await _resources.GetAllAsync(cancellationToken)).ToDictionary(r => r.Id);
 
-            return scoped
+            return list
                 .OrderByDescending(w => w.CreatedAt)
                 .Select(w => WaitlistEvaluation.ToDto(w, resources.TryGetValue(w.ResourceId, out var r) ? r.Name : null))
                 .ToList();

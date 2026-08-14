@@ -48,19 +48,21 @@ namespace LabBooking.Application.Features.Waitlists
                 .Where(w => w.DesiredEnd > now)
                 .Where(w => w.DesiredStart < freedEnd && freedStart < w.DesiredEnd)
                 .OrderBy(w => w.CreatedAt)
-                .Take(5);
+                .FirstOrDefault();
 
-            foreach (var w in eligible)
+            // Chỉ thông báo người đầu hàng đợi (FIFO) cho 1 khung giờ được trống;
+            // các entry sau giữ nguyên Waiting để còn nhận thông báo cho lần trống khác.
+            if (eligible == null)
+                return;
+
+            eligible.Status = WaitlistStatus.Notified;
+            eligible.NotifiedAt = now;
+            await notifications.AddAsync(new Notification
             {
-                w.Status = WaitlistStatus.Notified;
-                w.NotifiedAt = now;
-                await notifications.AddAsync(new Notification
-                {
-                    UserId = w.RequesterId,
-                    Type = NotificationType.WaitlistAvailable,
-                    Content = $"A slot you were waiting for on resource {resourceId} is now available."
-                }, cancellationToken);
-            }
+                UserId = eligible.RequesterId,
+                Type = NotificationType.WaitlistAvailable,
+                Content = $"A slot you were waiting for on resource {resourceId} is now available."
+            }, cancellationToken);
         }
     }
 }

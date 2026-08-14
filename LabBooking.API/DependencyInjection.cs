@@ -3,6 +3,8 @@ using LabBooking.Application.Common;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LabBooking.API
 {
@@ -14,6 +16,12 @@ namespace LabBooking.API
             services.AddControllers(options =>
             {
                 options.Filters.Add<ApiResponseWrapperFilter>();
+            })
+            .AddJsonOptions(options =>
+            {
+                // Mọi DateTime từ body chuẩn hoá về UTC trước khi vào handler,
+                // tránh so sánh nhầm giữa giờ client (naive/local) với DateTime.UtcNow.
+                options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
             });
 
             services.AddHttpContextAccessor();
@@ -29,5 +37,23 @@ namespace LabBooking.API
 
             return services;
         }
+    }
+
+    /// <summary>Chuẩn hoá DateTime từ JSON body về UTC: Z giữ nguyên, offset/local đổi sang UTC, naive coi là UTC.</summary>
+    internal sealed class UtcDateTimeConverter : JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetDateTime();
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToUniversalTime());
     }
 }

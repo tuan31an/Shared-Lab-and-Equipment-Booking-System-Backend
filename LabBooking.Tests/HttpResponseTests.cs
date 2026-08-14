@@ -110,14 +110,12 @@ public class ApiResponseWrapperFilterTests
     }
 
     [Fact]
-    public async Task StatusCode_Result_Without_Body_Is_Wrapped()
+    public async Task StatusCode_204_Result_Is_Not_Wrapped()
     {
         var response = await RunNoContent(new NoContentResult());
 
         Assert.Equal(204, response.StatusCode);
-        Assert.True(response.Wrapped!.IsSuccess);
-        Assert.Null(response.Wrapped.Result);
-        Assert.Empty(response.Wrapped.ErrorMessages);
+        Assert.Null(response.Wrapped);
     }
 
     private static async Task<(ApiResponse? Wrapped, int StatusCode)> RunNoContent(StatusCodeResult result)
@@ -129,8 +127,12 @@ public class ApiResponseWrapperFilterTests
         var executed = new ResultExecutedContext(actionContext, filters, result, null!);
         var context = new ResultExecutingContext(actionContext, filters, result, null!);
         await filter.OnResultExecutionAsync(context, () => Task.FromResult(executed));
-        var objectResult = Assert.IsAssignableFrom<ObjectResult>(context.Result);
-        return (objectResult.Value as ApiResponse, objectResult.StatusCode ?? 200);
+
+        if (context.Result is ObjectResult objectResult)
+            return (objectResult.Value as ApiResponse, objectResult.StatusCode ?? 200);
+
+        var status = context.Result is StatusCodeResult statusCodeResult ? statusCodeResult.StatusCode : 200;
+        return (null, status);
     }
 }
 

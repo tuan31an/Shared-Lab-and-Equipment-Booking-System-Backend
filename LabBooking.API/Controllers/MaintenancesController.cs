@@ -23,10 +23,12 @@ namespace LabBooking.API.Controllers
             => Ok(await _sender.Send(query));
 
         [HttpPost]
+        [Authorize(Roles = "Admin,LabManager")]
         public async Task<IActionResult> Schedule([FromBody] CreateMaintenanceCommand command)
             => Created(string.Empty, await _sender.Send(command));
 
         [HttpPost("{maintenanceId:guid}/resolve")]
+        [Authorize(Roles = "Admin,LabManager")]
         public async Task<IActionResult> Resolve(Guid maintenanceId, [FromBody] ResolveMaintenanceCommand? command)
         {
             command ??= new ResolveMaintenanceCommand();

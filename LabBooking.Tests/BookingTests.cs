@@ -9,7 +9,8 @@ namespace LabBooking.Tests;
 
 public class BookingTests
 {
-    private static DateTime InFuture(double hours = 24) => DateTime.UtcNow.AddHours(hours);
+    // Neo vào khung giờ hoạt động 07:00–22:00 (UTC) cùng ngày mai để không phụ thuộc giờ chạy máy.
+    private static DateTime InFuture(double hours = 24) => DateTime.UtcNow.Date.AddDays(1).AddHours(10).AddHours(hours);
 
     private readonly FakeRepository<Booking> _bookings = new();
     private readonly FakeRepository<Resource> _resources = new();
@@ -40,6 +41,21 @@ public class BookingTests
 
     private Booking AddBooking(Resource resource, DateTime start, DateTime end, BookingStatus status = BookingStatus.Pending, Guid? ruleId = null)
     {
+        var requester = _users.Items.FirstOrDefault(u => u.Id == _user.UserId);
+        if (requester == null)
+        {
+            requester = new User
+            {
+                FullName = "Requester",
+                Email = "req@test.com",
+                PasswordHash = "x",
+                Role = UserRole.Requester,
+                Status = UserStatus.Active
+            };
+            _users.Items.Add(requester);
+            _user.UserId = requester.Id;
+        }
+
         var booking = new Booking
         {
             ResourceId = resource.Id,
@@ -86,6 +102,31 @@ public class BookingTests
             ResourceId = resource.Id,
             StartTime = InFuture(2),
             EndTime = InFuture(1),
+            Purpose = "x"
+        }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Create_Outside_Operating_Hours_Throws()
+    {
+        var resource = AddResource();
+        AddRequester();
+        var handler = new CreateBookingCommandHandler(_bookings, _resources, _users, _rules, _maintenances, _restrictions, _user, _uow);
+
+        var dayAfterTomorrow = DateTime.UtcNow.Date.AddDays(2);
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(23),
+            EndTime = dayAfterTomorrow.AddHours(23).AddMinutes(30),
+            Purpose = "x"
+        }, CancellationToken.None));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(6),
+            EndTime = dayAfterTomorrow.AddHours(7),
             Purpose = "x"
         }, CancellationToken.None));
     }
@@ -240,7 +281,7 @@ public class BookingTests
     public async Task Cancel_Too_Close_To_Start_Throws()
     {
         var resource = AddResource();
-        var booking = AddBooking(resource, InFuture(1), InFuture(3), BookingStatus.Approved);
+        var booking = AddBooking(resource, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(3), BookingStatus.Approved);
         var handler = new CancelBookingCommandHandler(
             _bookings, _resources, _users, _rules, _checkInOuts, _waitlists, _notifications, _user, TestConfig.Empty(), _uow);
 

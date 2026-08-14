@@ -58,16 +58,35 @@ namespace LabBooking.Application.Features.Bookings.Queries
             if (request.From.HasValue && request.To.HasValue && request.To <= request.From)
                 throw new ArgumentException("To must be after From.");
 
-            var all = await _bookings.ListAsync(null, cancellationToken);
+            var role = _currentUser.Role;
+            var userId = _currentUser.UserId;
+            var ownOnly = role != "Admin" && role != "LabManager";
 
-            var scoped = await ScopeToRoleAsync(all, cancellationToken);
+            // Bộ lọc + phạm vi vai trò đẩy xuống EF; LabManager lọc theo resource phụ trách
+            // trong RAM (trên tập đã thu hẹp bởi bộ lọc SQL).
+            HashSet<Guid>? managedResourceIds = null;
+            if (role == "LabManager" && userId.HasValue)
+            {
+                managedResourceIds = (await _resources.GetAllAsync(cancellationToken))
+                    .Where(r => r.LabManagerId == userId)
+                    .Select(r => r.Id)
+                    .ToHashSet();
+            }
+
+            var all = await _bookings.ListAsync(b =>
+                (!request.Status.HasValue || b.Status == request.Status) &&
+                (!request.ResourceId.HasValue || b.ResourceId == request.ResourceId) &&
+                (!request.RequesterId.HasValue || b.RequesterId == request.RequesterId) &&
+                (!request.From.HasValue || b.EndTime > request.From.Value) &&
+                (!request.To.HasValue || b.StartTime < request.To.Value) &&
+                (!ownOnly || b.RequesterId == userId),
+                cancellationToken);
+
+            var scoped = role == "LabManager"
+                ? all.Where(b => managedResourceIds!.Contains(b.ResourceId)).ToList()
+                : all.ToList();
+
             var filtered = scoped
-                .Where(b =>
-                    (!request.Status.HasValue || b.Status == request.Status) &&
-                    (!request.ResourceId.HasValue || b.ResourceId == request.ResourceId) &&
-                    (!request.RequesterId.HasValue || b.RequesterId == request.RequesterId) &&
-                    (!request.From.HasValue || b.EndTime > request.From.Value) &&
-                    (!request.To.HasValue || b.StartTime < request.To.Value))
                 .OrderByDescending(b => b.CreatedAt)
                 .ToList();
 
@@ -84,31 +103,6 @@ namespace LabBooking.Application.Features.Bookings.Queries
                 filtered.Count,
                 request.Page,
                 request.PageSize);
-        }
-
-        /// <summary>
-        /// Giới hạn theo vai trò: Requester chỉ thấy lịch của mình; Lab Manager chỉ thấy
-        /// lịch trên phòng/thiết bị mình phụ trách; Admin thấy tất cả.
-        /// </summary>
-        private async Task<IEnumerable<Booking>> ScopeToRoleAsync(
-            IReadOnlyList<Booking> all,
-            CancellationToken cancellationToken)
-        {
-            var role = _currentUser.Role;
-            if (role == "Admin")
-                return all;
-
-            if (role == "LabManager")
-            {
-                var managedIds = (await _resources.GetAllAsync(cancellationToken))
-                    .Where(r => r.LabManagerId == _currentUser.UserId)
-                    .Select(r => r.Id)
-                    .ToHashSet();
-                return all.Where(b => managedIds.Contains(b.ResourceId));
-            }
-
-            // Requester (mặc định)
-            return all.Where(b => b.RequesterId == _currentUser.UserId);
         }
     }
 }

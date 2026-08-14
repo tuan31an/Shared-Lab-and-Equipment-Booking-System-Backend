@@ -3,12 +3,14 @@ using LabBooking.Application.Features.Auth.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Net;
 
 namespace LabBooking.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("auth")]
     public class AuthController : ControllerBase
     {
         private readonly ISender _sender;

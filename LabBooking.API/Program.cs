@@ -3,10 +3,12 @@ using LabBooking.Application;
 using LabBooking.Infrastructure.Sqlserver;
 using LabBooking.Infrastructure.Sqlserver.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,7 +50,7 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -64,6 +66,22 @@ builder.Services.AddAuthentication(options =>
     });
 
 builder.Services.AddAuthorization();
+
+// Chặn brute-force trên các endpoint xác thực (login/register/refresh).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 builder.Services.AddHostedService<LabBooking.API.Common.RefreshTokenCleanupService>();
 builder.Services.AddHostedService<LabBooking.API.Common.BookingReminderService>();
@@ -99,7 +117,7 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await context.Database.MigrateAsync();
 
-    if (builder.Configuration.GetValue<bool>("SeedData:Enabled"))
+    if (builder.Configuration.GetValue<bool>("SeedData:Enabled") && app.Environment.IsDevelopment())
         await DataSeeder.SeedAsync(context);
 }
 
@@ -115,6 +133,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors(FrontendCorsPolicy);
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

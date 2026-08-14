@@ -23,10 +23,12 @@ namespace LabBooking.API.Controllers
             => Ok(await _sender.Send(query));
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateRestrictionCommand command)
             => Created(string.Empty, await _sender.Send(command));
 
         [HttpDelete("{restrictionId:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Remove(Guid restrictionId)
             => Ok(await _sender.Send(new RemoveRestrictionCommand { RestrictionId = restrictionId }));
     }

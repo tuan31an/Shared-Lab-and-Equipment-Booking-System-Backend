@@ -35,13 +35,29 @@ namespace LabBooking.Application.Features.Incidents.Queries
 
         public async Task<IReadOnlyList<IncidentDto>> Handle(GetIncidentsQuery request, CancellationToken cancellationToken)
         {
-            var all = await _incidents.ListAsync(null, cancellationToken);
-            var scope = await ScopeAsync(all, cancellationToken);
+            var role = _currentUser.Role;
+            var userId = _currentUser.UserId;
+            var ownOnly = role != "Admin" && role != "LabManager";
 
-            var filtered = scope
-                .Where(i =>
-                    (!request.Status.HasValue || i.Status == request.Status) &&
-                    (!request.ResourceId.HasValue || i.ResourceId == request.ResourceId))
+            // LabManager: lọc theo resource phụ trách trong RAM (tập đã thu hẹp bởi bộ lọc SQL).
+            HashSet<Guid>? managedResourceIds = null;
+            if (role == "LabManager" && userId.HasValue)
+            {
+                managedResourceIds = (await _resources.GetAllAsync(cancellationToken))
+                    .Where(r => r.LabManagerId == userId)
+                    .Select(r => r.Id)
+                    .ToHashSet();
+            }
+
+            var list = await _incidents.ListAsync(i =>
+                (!request.Status.HasValue || i.Status == request.Status) &&
+                (!request.ResourceId.HasValue || i.ResourceId == request.ResourceId) &&
+                (!ownOnly || i.ReportedBy == userId),
+                cancellationToken);
+
+            var filtered = (role == "LabManager"
+                ? list.Where(i => managedResourceIds!.Contains(i.ResourceId))
+                : list)
                 .OrderByDescending(i => i.ReportedAt)
                 .ToList();
 
@@ -64,25 +80,6 @@ namespace LabBooking.Application.Features.Incidents.Queries
                     i.Status.ToString(),
                     i.ReportedAt);
             }).ToList();
-        }
-
-        private async Task<IReadOnlyList<Incident>> ScopeAsync(IReadOnlyList<Incident> all, CancellationToken cancellationToken)
-        {
-            var role = _currentUser.Role;
-            if (role == "Admin")
-                return all;
-
-            if (role == "LabManager")
-            {
-                var managedIds = (await _resources.GetAllAsync(cancellationToken))
-                    .Where(r => r.LabManagerId == _currentUser.UserId)
-                    .Select(r => r.Id)
-                    .ToHashSet();
-                return all.Where(i => managedIds.Contains(i.ResourceId)).ToList();
-            }
-
-            // Requester: chỉ thấy sự cố mình đã báo cáo.
-            return all.Where(i => i.ReportedBy == _currentUser.UserId).ToList();
         }
     }
 }

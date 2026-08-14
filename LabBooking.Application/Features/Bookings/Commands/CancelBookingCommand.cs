@@ -57,8 +57,13 @@ namespace LabBooking.Application.Features.Bookings.Commands
             var booking = await _bookings.GetByIdAsync(request.BookingId, cancellationToken)
                 ?? throw new NotFoundException($"Booking {request.BookingId} not found.");
 
-            if (booking.RequesterId != _currentUser.UserId)
-                throw new UnauthorizedException("You can only cancel your own bookings.");
+            var currentUserId = _currentUser.UserId
+                ?? throw new UnauthorizedException("Authentication required.");
+
+            var resource = await _resources.GetByIdAsync(booking.ResourceId, cancellationToken);
+            var isManagerOrAdmin = _currentUser.Role == "Admin" || resource?.LabManagerId == currentUserId;
+            if (booking.RequesterId != currentUserId && !isManagerOrAdmin)
+                throw new UnauthorizedException("You can only cancel your own bookings or bookings on resources you manage.");
 
             if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.Rejected)
                 throw new ArgumentException("This booking cannot be cancelled in its current state.");

@@ -61,6 +61,10 @@ namespace LabBooking.Application.Features.Bookings.Commands
             if (resource.Status != ResourceStatus.Available)
                 throw new ConflictException($"Resource is currently {resource.Status}.");
 
+            var requester = await _users.GetByIdAsync(booking.RequesterId, cancellationToken);
+            if (requester == null || requester.Status != UserStatus.Active)
+                throw new ConflictException("The requester account is not active; this booking cannot be approved.");
+
             var currentUser = _currentUser.UserId
                 ?? throw new UnauthorizedException("Authentication required.");
 
@@ -97,6 +101,10 @@ namespace LabBooking.Application.Features.Bookings.Commands
                         loser.MarkUpdated();
                         _bookings.Update(loser);
                     }
+
+                    // Lưu trước: trigger chống chồng lấn sẽ thấy các loser đã là Rejected
+                    // trước khi winner chuyển sang Approved — tránh phụ thuộc thứ tự UPDATE của EF.
+                    await _uow.SaveChangesAsync(cancellationToken);
                 }
                 else
                 {

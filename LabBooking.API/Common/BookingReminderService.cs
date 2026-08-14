@@ -43,8 +43,10 @@ namespace LabBooking.API.Common
                     continue;
 
                 // ponytail: substring scan on content for dedupe; swap to a BookingId FK column if scale requires.
+                // Giới hạn phạm vi quét theo user có lịch sắp tới thay vì toàn bộ bảng Notification.
+                var requesterIds = upcoming.Select(b => b.RequesterId).ToList();
                 var existing = await db.Notifications
-                    .Where(n => n.Type == NotificationType.BookingReminder)
+                    .Where(n => n.Type == NotificationType.BookingReminder && requesterIds.Contains(n.UserId))
                     .Select(n => n.Content)
                     .ToListAsync(stoppingToken);
 
