@@ -22,4 +22,8 @@
     <ProjectReference Include="..\LabBooking.Infrastructure.Sqlserver\LabBooking.Infrastructure.Sqlserver.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LabBooking.Tests" />
+  </ItemGroup>
+
 </Project>

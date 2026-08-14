@@ -63,7 +63,7 @@ namespace LabBooking.Application.Features.Violations.Queries
                 cancellationToken);
 
             var filtered = (role == "LabManager"
-                ? list.Where(v => v.BookingId.HasValue && managedBookingIds!.Contains(v.BookingId.Value))
+                ? list.Where(v => v.BookingId.HasValue && managedBookingIds?.Contains(v.BookingId.Value) == true)
                 : list)
                 .OrderByDescending(v => v.RecordedAt)
                 .ToList();

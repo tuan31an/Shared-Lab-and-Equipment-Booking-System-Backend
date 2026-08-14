@@ -1,3 +1,4 @@
+using LabBooking.API;
 using LabBooking.API.Common;
 using LabBooking.API.Models;
 using LabBooking.Application.Common.Exceptions;
@@ -133,6 +134,53 @@ public class ApiResponseWrapperFilterTests
 
         var status = context.Result is StatusCodeResult statusCodeResult ? statusCodeResult.StatusCode : 200;
         return (null, status);
+    }
+}
+
+public class UtcDateTimeConverterTests
+{
+    private static readonly JsonSerializerOptions Options = new();
+
+    static UtcDateTimeConverterTests()
+    {
+        Options.Converters.Add(new UtcDateTimeConverter());
+    }
+
+    [Fact]
+    public void Read_Offset_Converts_To_Utc()
+    {
+        var expected = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.FromHours(7)).UtcDateTime;
+        var result = JsonSerializer.Deserialize<DateTime>("\"2026-01-01T12:00:00+07:00\"", Options);
+
+        Assert.Equal(DateTimeKind.Utc, result.Kind);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void Read_Naive_Treated_As_Utc_Not_Local()
+    {
+        var result = JsonSerializer.Deserialize<DateTime>("\"2026-01-01T12:00:00\"", Options);
+
+        Assert.Equal(DateTimeKind.Utc, result.Kind);
+        Assert.Equal(12, result.Hour);
+    }
+
+    [Fact]
+    public void Write_Unspecified_Does_Not_Shift()
+    {
+        var dbValue = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Unspecified);
+
+        Assert.Equal("\"2026-01-01T10:00:00Z\"", JsonSerializer.Serialize(dbValue, Options));
+    }
+
+    [Fact]
+    public void Write_Local_Converts_To_Utc()
+    {
+        var local = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Local);
+
+        Assert.Equal(
+            "\"" + local.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") + "\"",
+            JsonSerializer.Serialize(local, Options));
     }
 }
 
