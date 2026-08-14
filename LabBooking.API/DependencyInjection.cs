@@ -54,6 +54,6 @@ namespace LabBooking.API
         }
 
         public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-            => writer.WriteStringValue(value.ToUniversalTime());
+            => writer.WriteStringValue(value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc));
     }
 }

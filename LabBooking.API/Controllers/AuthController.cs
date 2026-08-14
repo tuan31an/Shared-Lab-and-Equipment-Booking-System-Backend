@@ -10,7 +10,6 @@ namespace LabBooking.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [EnableRateLimiting("auth")]
     public class AuthController : ControllerBase
     {
         private readonly ISender _sender;
@@ -21,6 +20,7 @@ namespace LabBooking.API.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Register([FromBody] RegisterCommand command)
         {
             var result = await _sender.Send(command);
@@ -28,6 +28,7 @@ namespace LabBooking.API.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login([FromBody] LoginCommand command)
         {
             return Ok(await _sender.Send(command));
@@ -35,6 +36,7 @@ namespace LabBooking.API.Controllers
 
         /// <summary>Làm mới access token bằng refresh token. Token cũ bị thu hồi (rotate).</summary>
         [HttpPost("refresh")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Refresh([FromBody] RefreshCommand command)
         {
             return Ok(await _sender.Send(command));

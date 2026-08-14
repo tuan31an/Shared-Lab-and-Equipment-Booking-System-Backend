@@ -56,7 +56,7 @@ namespace LabBooking.Application.Features.Incidents.Queries
                 cancellationToken);
 
             var filtered = (role == "LabManager"
-                ? list.Where(i => managedResourceIds!.Contains(i.ResourceId))
+                ? list.Where(i => managedResourceIds?.Contains(i.ResourceId) == true)
                 : list)
                 .OrderByDescending(i => i.ReportedAt)
                 .ToList();

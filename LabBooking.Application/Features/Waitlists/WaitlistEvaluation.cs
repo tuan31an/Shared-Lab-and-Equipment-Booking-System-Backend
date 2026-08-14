@@ -37,14 +37,18 @@ namespace LabBooking.Application.Features.Waitlists
         {
             var now = DateTime.UtcNow;
             var entries = await waitlists.ListAsync(
-                w => w.ResourceId == resourceId && w.Status == WaitlistStatus.Waiting,
+                w => w.ResourceId == resourceId && (w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.Notified),
                 cancellationToken);
 
             var expired = entries.Where(w => w.DesiredEnd <= now).ToList();
             foreach (var w in expired)
+            {
                 w.Status = WaitlistStatus.Expired;
+                waitlists.Update(w);
+            }
 
             var eligible = entries
+                .Where(w => w.Status == WaitlistStatus.Waiting)
                 .Where(w => w.DesiredEnd > now)
                 .Where(w => w.DesiredStart < freedEnd && freedStart < w.DesiredEnd)
                 .OrderBy(w => w.CreatedAt)
@@ -57,6 +61,7 @@ namespace LabBooking.Application.Features.Waitlists
 
             eligible.Status = WaitlistStatus.Notified;
             eligible.NotifiedAt = now;
+            waitlists.Update(eligible);
             await notifications.AddAsync(new Notification
             {
                 UserId = eligible.RequesterId,

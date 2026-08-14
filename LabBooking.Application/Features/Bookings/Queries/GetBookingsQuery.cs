@@ -83,7 +83,7 @@ namespace LabBooking.Application.Features.Bookings.Queries
                 cancellationToken);
 
             var scoped = role == "LabManager"
-                ? all.Where(b => managedResourceIds!.Contains(b.ResourceId)).ToList()
+                ? all.Where(b => managedResourceIds?.Contains(b.ResourceId) == true).ToList()
                 : all.ToList();
 
             var filtered = scoped

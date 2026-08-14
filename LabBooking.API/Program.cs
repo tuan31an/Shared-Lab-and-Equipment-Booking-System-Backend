@@ -117,8 +117,11 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await context.Database.MigrateAsync();
 
-    if (builder.Configuration.GetValue<bool>("SeedData:Enabled") && app.Environment.IsDevelopment())
+    var seedEnabled = builder.Configuration.GetValue<bool>("SeedData:Enabled");
+    if (seedEnabled && app.Environment.IsDevelopment())
         await DataSeeder.SeedAsync(context);
+    else if (seedEnabled)
+        Console.WriteLine("[SeedData] Seeding skipped: only runs in Development.");
 }
 
 app.UseExceptionHandler();

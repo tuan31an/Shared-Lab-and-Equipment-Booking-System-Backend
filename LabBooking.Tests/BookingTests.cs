@@ -129,6 +129,52 @@ public class BookingTests
             EndTime = dayAfterTomorrow.AddHours(7),
             Purpose = "x"
         }, CancellationToken.None));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(21),
+            EndTime = dayAfterTomorrow.AddHours(22).AddMinutes(30),
+            Purpose = "x"
+        }, CancellationToken.None));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(22).AddMinutes(30),
+            EndTime = dayAfterTomorrow.AddHours(24).AddMinutes(30),
+            Purpose = "x"
+        }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Create_At_Operating_Hours_Boundaries_Succeeds()
+    {
+        var resource = AddResource();
+        AddRequester();
+        var handler = new CreateBookingCommandHandler(_bookings, _resources, _users, _rules, _maintenances, _restrictions, _user, _uow);
+
+        var dayAfterTomorrow = DateTime.UtcNow.Date.AddDays(2);
+
+        var opening = await handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(7),
+            EndTime = dayAfterTomorrow.AddHours(7).AddMinutes(30),
+            Purpose = "x"
+        }, CancellationToken.None);
+        Assert.NotNull(opening);
+
+        var closing = await handler.Handle(new CreateBookingCommand
+        {
+            ResourceId = resource.Id,
+            StartTime = dayAfterTomorrow.AddHours(21).AddMinutes(30),
+            EndTime = dayAfterTomorrow.AddHours(22),
+            Purpose = "x"
+        }, CancellationToken.None);
+        Assert.NotNull(closing);
+
+        Assert.Equal(2, _bookings.Items.Count);
     }
 
     [Fact]
@@ -275,6 +321,78 @@ public class BookingTests
         var notification = Assert.Single(_notifications.Items);
         Assert.Equal(NotificationType.WaitlistAvailable, notification.Type);
         Assert.Equal(otherUser, notification.UserId);
+    }
+
+    [Fact]
+    public async Task Cancel_Expires_Stale_Notified_And_Notifies_Next_In_Queue()
+    {
+        var resource = AddResource();
+        var booking = AddBooking(resource, InFuture(24), InFuture(26), BookingStatus.Approved);
+        var staleUser = Guid.NewGuid();
+        var nextUser = Guid.NewGuid();
+        _waitlists.Items.Add(new Waitlist
+        {
+            ResourceId = resource.Id,
+            RequesterId = staleUser,
+            DesiredStart = DateTime.UtcNow.AddHours(-2),
+            DesiredEnd = DateTime.UtcNow.AddHours(-1),
+            Status = WaitlistStatus.Notified
+        });
+        _waitlists.Items.Add(new Waitlist
+        {
+            ResourceId = resource.Id,
+            RequesterId = nextUser,
+            DesiredStart = booking.StartTime,
+            DesiredEnd = booking.EndTime,
+            Status = WaitlistStatus.Waiting
+        });
+
+        var handler = new CancelBookingCommandHandler(
+            _bookings, _resources, _users, _rules, _checkInOuts, _waitlists, _notifications, _user, TestConfig.Empty(), _uow);
+
+        await handler.Handle(new CancelBookingCommand { BookingId = booking.Id }, CancellationToken.None);
+
+        Assert.Equal(WaitlistStatus.Expired, _waitlists.Items.Single(w => w.RequesterId == staleUser).Status);
+        var promoted = _waitlists.Items.Single(w => w.RequesterId == nextUser);
+        Assert.Equal(WaitlistStatus.Notified, promoted.Status);
+        Assert.NotNull(promoted.NotifiedAt);
+        var notification = Assert.Single(_notifications.Items);
+        Assert.Equal(nextUser, notification.UserId);
+    }
+
+    [Fact]
+    public async Task Cancel_Notifies_Only_Fifo_Head_Rest_Stay_Waiting()
+    {
+        var resource = AddResource();
+        var booking = AddBooking(resource, InFuture(24), InFuture(26), BookingStatus.Approved);
+        var headUser = Guid.NewGuid();
+        var secondUser = Guid.NewGuid();
+        _waitlists.Items.Add(new Waitlist
+        {
+            ResourceId = resource.Id,
+            RequesterId = headUser,
+            DesiredStart = booking.StartTime,
+            DesiredEnd = booking.EndTime,
+            Status = WaitlistStatus.Waiting
+        });
+        _waitlists.Items.Add(new Waitlist
+        {
+            ResourceId = resource.Id,
+            RequesterId = secondUser,
+            DesiredStart = booking.StartTime,
+            DesiredEnd = booking.EndTime,
+            Status = WaitlistStatus.Waiting
+        });
+
+        var handler = new CancelBookingCommandHandler(
+            _bookings, _resources, _users, _rules, _checkInOuts, _waitlists, _notifications, _user, TestConfig.Empty(), _uow);
+
+        await handler.Handle(new CancelBookingCommand { BookingId = booking.Id }, CancellationToken.None);
+
+        Assert.Equal(WaitlistStatus.Notified, _waitlists.Items.Single(w => w.RequesterId == headUser).Status);
+        Assert.Equal(WaitlistStatus.Waiting, _waitlists.Items.Single(w => w.RequesterId == secondUser).Status);
+        var notification = Assert.Single(_notifications.Items);
+        Assert.Equal(headUser, notification.UserId);
     }
 
     [Fact]
