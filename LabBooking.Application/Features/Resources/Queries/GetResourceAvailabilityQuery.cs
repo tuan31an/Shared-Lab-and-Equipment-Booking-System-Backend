@@ -81,7 +81,8 @@ namespace LabBooking.Application.Features.Resources.Queries
                 .Concat(maintenance.Select(m => (m.StartTime, m.EndTime)))
                 .ToList();
 
-            var freeSlots = Scheduling.FreeGaps(request.From, request.To, busyRanges, TimeSpan.FromHours(7), TimeSpan.FromHours(22))
+            // Khung hoạt động 07:00–22:00 giờ VN = 00:00–15:00 UTC (UTC+7, không DST).
+            var freeSlots = Scheduling.FreeGaps(request.From, request.To, busyRanges, TimeSpan.Zero, TimeSpan.FromHours(15))
                 .Select(g => new AvailabilitySlotDto(g.Start, g.End, "Free", null));
 
             return bookedSlots
