@@ -157,29 +157,29 @@ public class UtcDateTimeConverterTests
     }
 
     [Fact]
-    public void Read_Naive_Treated_As_Utc_Not_Local()
+    public void Read_Naive_Treated_As_Vietnam_Time_Not_Utc()
     {
         var result = JsonSerializer.Deserialize<DateTime>("\"2026-01-01T12:00:00\"", Options);
 
         Assert.Equal(DateTimeKind.Utc, result.Kind);
-        Assert.Equal(12, result.Hour);
+        Assert.Equal(5, result.Hour); // 12:00 giờ VN = 05:00 UTC
     }
 
     [Fact]
-    public void Write_Unspecified_Does_Not_Shift()
+    public void Write_Unspecified_Shifts_To_Utc_Plus7()
     {
         var dbValue = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Unspecified);
 
-        Assert.Equal("\"2026-01-01T10:00:00Z\"", JsonSerializer.Serialize(dbValue, Options));
+        Assert.Equal("\"2026-01-01T17:00:00+07:00\"", JsonSerializer.Serialize(dbValue, Options));
     }
 
     [Fact]
-    public void Write_Local_Converts_To_Utc()
+    public void Write_Local_Converts_To_Utc_Then_Plus7()
     {
         var local = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Local);
 
         Assert.Equal(
-            "\"" + local.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") + "\"",
+            "\"" + local.ToUniversalTime().AddHours(7).ToString("yyyy-MM-ddTHH:mm:ss+07:00") + "\"",
             JsonSerializer.Serialize(local, Options));
     }
 }
