@@ -9,7 +9,10 @@ public class MaintenanceConfiguration : IEntityTypeConfiguration<Maintenance>
     public void Configure(EntityTypeBuilder<Maintenance> builder)
     {
         builder.ToTable("Maintenances", t =>
-            t.HasCheckConstraint("CK_Maintenances_EndTime_After_StartTime", "[EndTime] > [StartTime]"));
+        {
+            t.HasCheckConstraint("CK_Maintenances_EndTime_After_StartTime", "[EndTime] > [StartTime]");
+            t.UseSqlOutputClause(false);
+        });
         builder.Property(m => m.Description).HasColumnType("nvarchar(max)");
         builder.Property(m => m.Cost).HasPrecision(12, 2);
 

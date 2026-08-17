@@ -110,15 +110,16 @@ namespace LabBooking.Application.Features.Bookings
             DateTime start,
             DateTime end)
         {
-            var windowStart = start.AddDays(-3).Date + TimeSpan.FromHours(7);
+            // Khung hoạt động 07:00–22:00 giờ VN = 00:00–15:00 UTC (UTC+7, không DST).
+            var windowStart = start.AddDays(-3).Date;
             if (windowStart < DateTime.UtcNow)
                 windowStart = DateTime.UtcNow;
 
-            var windowEnd = end.AddDays(3).Date + TimeSpan.FromHours(22);
+            var windowEnd = end.AddDays(3).Date + TimeSpan.FromHours(15);
             if (windowEnd <= windowStart)
                 return [];
 
-            var gaps = Scheduling.FreeGaps(windowStart, windowEnd, blockedRanges, TimeSpan.FromHours(7), TimeSpan.FromHours(22));
+            var gaps = Scheduling.FreeGaps(windowStart, windowEnd, blockedRanges, TimeSpan.Zero, TimeSpan.FromHours(15));
             return Scheduling.SuggestSlots(gaps, start, end - start)
                 .Select(s => new AvailabilitySlotDto(s.Start, s.End, "Free", null))
                 .ToList();

@@ -41,9 +41,15 @@ namespace LabBooking.API
         }
     }
 
-    /// <summary>Chuẩn hoá DateTime từ JSON body về UTC: Z giữ nguyên, offset/local đổi sang UTC, naive coi là UTC.</summary>
+    /// <summary>
+    /// Chuẩn hoá DateTime về UTC+7 (giờ VN, không DST): Z giữ nguyên, offset/local đổi sang UTC,
+    /// naive coi là giờ VN → quy về UTC. Khi trả ra, mọi thời điểm xuất dưới dạng +07:00 để FE
+    /// đọc trực tiếp giờ VN (khớp FE dev: suggestion cắt chuỗi bỏ offset).
+    /// </summary>
     internal sealed class UtcDateTimeConverter : JsonConverter<DateTime>
     {
+        private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var value = reader.GetDateTime();
@@ -51,11 +57,14 @@ namespace LabBooking.API
             {
                 DateTimeKind.Utc => value,
                 DateTimeKind.Local => value.ToUniversalTime(),
-                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc).Add(-VietnamOffset)
             };
         }
 
         public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-            => writer.WriteStringValue(value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc));
+        {
+            var utc = value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            writer.WriteStringValue(new DateTimeOffset(utc, TimeSpan.Zero).ToOffset(VietnamOffset));
+        }
     }
 }

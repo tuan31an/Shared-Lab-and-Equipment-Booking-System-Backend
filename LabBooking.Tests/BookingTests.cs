@@ -9,8 +9,9 @@ namespace LabBooking.Tests;
 
 public class BookingTests
 {
-    // Neo vào khung giờ hoạt động 07:00–22:00 (UTC) cùng ngày mai để không phụ thuộc giờ chạy máy.
-    private static DateTime InFuture(double hours = 24) => DateTime.UtcNow.Date.AddDays(1).AddHours(10).AddHours(hours);
+    // Neo vào khung giờ hoạt động 07:00–22:00 giờ VN = 00:00–15:00 UTC (UTC+7, không DST)
+    // cùng ngày mai để không phụ thuộc giờ chạy máy.
+    private static DateTime InFuture(double hours = 24) => DateTime.UtcNow.Date.AddDays(1).AddHours(3).AddHours(hours);
 
     private readonly FakeRepository<Booking> _bookings = new();
     private readonly FakeRepository<Resource> _resources = new();
@@ -117,32 +118,32 @@ public class BookingTests
         await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(23),
-            EndTime = dayAfterTomorrow.AddHours(23).AddMinutes(30),
+            StartTime = dayAfterTomorrow.AddHours(16),
+            EndTime = dayAfterTomorrow.AddHours(16).AddMinutes(30),
             Purpose = "x"
         }, CancellationToken.None));
 
         await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(6),
-            EndTime = dayAfterTomorrow.AddHours(7),
+            StartTime = dayAfterTomorrow.AddHours(-1),
+            EndTime = dayAfterTomorrow.AddHours(0),
             Purpose = "x"
         }, CancellationToken.None));
 
         await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(21),
-            EndTime = dayAfterTomorrow.AddHours(22).AddMinutes(30),
+            StartTime = dayAfterTomorrow.AddHours(14),
+            EndTime = dayAfterTomorrow.AddHours(15).AddMinutes(30),
             Purpose = "x"
         }, CancellationToken.None));
 
         await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(22).AddMinutes(30),
-            EndTime = dayAfterTomorrow.AddHours(24).AddMinutes(30),
+            StartTime = dayAfterTomorrow.AddHours(15).AddMinutes(30),
+            EndTime = dayAfterTomorrow.AddHours(17).AddMinutes(30),
             Purpose = "x"
         }, CancellationToken.None));
     }
@@ -159,8 +160,8 @@ public class BookingTests
         var opening = await handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(7),
-            EndTime = dayAfterTomorrow.AddHours(7).AddMinutes(30),
+            StartTime = dayAfterTomorrow.AddHours(0),
+            EndTime = dayAfterTomorrow.AddHours(0).AddMinutes(30),
             Purpose = "x"
         }, CancellationToken.None);
         Assert.NotNull(opening);
@@ -168,8 +169,8 @@ public class BookingTests
         var closing = await handler.Handle(new CreateBookingCommand
         {
             ResourceId = resource.Id,
-            StartTime = dayAfterTomorrow.AddHours(21).AddMinutes(30),
-            EndTime = dayAfterTomorrow.AddHours(22),
+            StartTime = dayAfterTomorrow.AddHours(14).AddMinutes(30),
+            EndTime = dayAfterTomorrow.AddHours(15),
             Purpose = "x"
         }, CancellationToken.None);
         Assert.NotNull(closing);
