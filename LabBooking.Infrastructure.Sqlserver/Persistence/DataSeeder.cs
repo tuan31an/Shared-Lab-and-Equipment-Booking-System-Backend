@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -36,7 +36,7 @@ public static class DataSeeder
                 "diana.researcher@example.com"
             };
             var sampleUsers = await context.Users
-                .Where(user => sampleEmails.Contains(user.Email) && user.PasswordHash == "")
+                .Where(user => sampleEmails.Contains(user.Email) && user.PasswordHash != DevelopmentPasswordHash)
                 .ToListAsync();
             foreach (var sampleUser in sampleUsers)
                 sampleUser.PasswordHash = DevelopmentPasswordHash;
