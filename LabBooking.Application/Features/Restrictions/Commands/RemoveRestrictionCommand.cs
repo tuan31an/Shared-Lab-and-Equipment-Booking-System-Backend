@@ -43,6 +43,7 @@ namespace LabBooking.Application.Features.Restrictions.Commands
             var user = await _users.GetByIdAsync(restriction.UserId, cancellationToken);
 
             _restrictions.Remove(restriction);
+            await _uow.SaveChangesAsync(cancellationToken);
             await RestrictionEvaluation.SyncUserStatusAsync(_restrictions, _users, restriction.UserId, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
